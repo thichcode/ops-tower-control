@@ -194,6 +194,44 @@ python sync_zabbix.py --mock
 python sync_zabbix.py
 ```
 
+## 🔔 Notifications
+
+### Daily Teams Digest
+Sends a daily summary per member to Teams: open items, blocked items, items with no update > 3 days.
+
+```bash
+# Preview
+python digest.py --dry-run
+
+# Send (requires TEAMS_DIGEST_WEBHOOK_URL)
+python digest.py
+```
+
+### Leader Alerts
+Detects and alerts on:
+- **Stale items** — open > 14 days
+- **Over-utilization** — member demand > 120% capacity
+- **Requester spikes** — requester opens 2x more items than last month
+- **Critical service load** — high-priority services have 5+ open items
+
+```bash
+# Preview
+python alerts.py --dry-run
+
+# Send (requires TEAMS_ALERT_WEBHOOK_URL)
+python alerts.py
+```
+
+### Schedule with Cron
+
+```cron
+# Every morning at 8:00
+0 8 * * * cd /path/to/opsdash && python digest.py
+
+# Every Monday at 9:00
+0 9 * * 1 cd /path/to/opsdash && python alerts.py
+```
+
 ## 🧪 Running Tests
 
 ```bash
@@ -215,8 +253,8 @@ print(r.status_code)
 - [x] Sprint 4 — SDP + Zabbix Sync
 - [x] Sprint 5 — Capacity + Demand vs Capacity
 - [ ] AI classifier (auto-classify service/type)
-- [ ] Daily Teams digest
-- [ ] Leader alerts (utilization > 120%, stale items)
+- [x] Daily Teams digest
+- [x] Leader alerts (utilization > 120%, stale items, requester spikes)
 - [ ] Service Health (Zabbix + SDP + risk score)
 
 ## 📄 License

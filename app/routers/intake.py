@@ -78,3 +78,17 @@ def intake_zabbix(mock: bool = False, dry_run: bool = False, db: Session = Depen
     from app.services.zabbix_sync import sync_zabbix_problems
     stats = sync_zabbix_problems(db, mock=mock, dry_run=dry_run)
     return {"status": "ok", "stats": stats}
+
+
+@router.post("/digest")
+def trigger_digest(dry_run: bool = False, db: Session = Depends(get_db)):
+    from app.services.daily_digest import send_daily_digest
+    result = send_daily_digest(db, dry_run=dry_run)
+    return result
+
+
+@router.post("/alerts")
+def trigger_alerts(dry_run: bool = False, db: Session = Depends(get_db)):
+    from app.services.leader_alerts import send_leader_alerts
+    result = send_leader_alerts(db, dry_run=dry_run)
+    return result
