@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Top Requesters{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Top Requesters</h2>
+  <div>
+    <a href="/dashboard/export/top-requesters{% if months %}?months={{ months }}{% endif %}" class="btn btn-outline-success btn-sm">CSV</a>
+  </div>
+</div>
+
+<form method="GET" class="row g-2 mb-3">
+  <div class="col-auto">
+    <select name="months" class="form-select" onchange="this.form.submit()">
+      <option value="">All time</option>
+      <option value="1" {{ 'selected' if months == 1 }}>This month</option>
+      <option value="3" {{ 'selected' if months == 3 }}>Last 3 months</option>
+      <option value="6" {{ 'selected' if months == 6 }}>Last 6 months</option>
+      <option value="12" {{ 'selected' if months == 12 }}>Last 12 months</option>
+    </select>
+  </div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead class="table-dark">
+      <tr>
+        <th>Requester</th>
+        <th class="text-center">Open</th>
+        <th class="text-center">Done</th>
+        <th class="text-center">Blocked</th>
+        <th class="text-center">Total</th>
+        <th class="text-end">Est. Hours</th>
+        <th class="text-end">Actual Hours</th>
+        <th class="text-end">Demand %</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in data %}
+      <tr>
+        <td>{{ r.requester }}</td>
+        <td class="text-center"><span class="badge bg-primary">{{ r.open }}</span></td>
+        <td class="text-center"><span class="badge bg-success">{{ r.done }}</span></td>
+        <td class="text-center">{% if r.blocked %}<span class="badge bg-warning text-dark">{{ r.blocked }}</span>{% else %}-{% endif %}</td>
+        <td class="text-center"><strong>{{ r.total }}</strong></td>
+        <td class="text-end">{{ r.estimated }}</td>
+        <td class="text-end">{{ r.actual }}</td>
+        <td class="text-end">{{ r.demand_pct }}%</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="text-center text-muted">No data</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Users{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>User Management</h2>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">+ Add User</button>
+</div>
+
+<table class="table table-hover">
+  <thead class="table-dark">
+    <tr><th>Name</th><th>Email</th><th>Role</th><th>Active</th><th>Actions</th></tr>
+  </thead>
+  <tbody>
+    {% for u in users %}
+    <tr>
+      <td>{{ u.display_name }}</td>
+      <td>{{ u.email }}</td>
+      <td>{{ u.role }}</td>
+      <td>{{ 'Yes' if u.is_active else 'No' }}</td>
+      <td>
+        <form method="POST" action="/users/{{ u.id }}/delete" onsubmit="return confirm('Delete {{ u.display_name }}?')">
+          <button class="btn btn-sm btn-danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="text-center text-muted">No users</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="/users">
+        <div class="modal-header"><h5>Add User</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Display Name *</label>
+            <input type="text" name="display_name" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email *</label>
+            <input type="email" name="email" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Role</label>
+            <select name="role" class="form-select">
+              <option value="member">Member</option>
+              <option value="leader">Leader</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-primary" type="submit">Add</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

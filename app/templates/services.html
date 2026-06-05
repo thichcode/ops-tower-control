@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Services{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Service Catalog</h2>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">+ Add Service</button>
+</div>
+
+<table class="table table-hover">
+  <thead class="table-dark">
+    <tr><th>Name</th><th>Category</th><th>Status</th><th>Actions</th></tr>
+  </thead>
+  <tbody>
+    {% for s in services %}
+    <tr>
+      <td>{{ s.name }}</td>
+      <td>{{ s.category or '-' }}</td>
+      <td>{{ s.status }}</td>
+      <td>
+        <form method="POST" action="/services/{{ s.id }}/delete" onsubmit="return confirm('Delete {{ s.name }}?')">
+          <button class="btn btn-sm btn-danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="text-center text-muted">No services</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="/services">
+        <div class="modal-header"><h5>Add Service</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Name *</label>
+            <input type="text" name="name" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Category</label>
+            <select name="category" class="form-select">
+              <option value="">-- None --</option>
+              {% for cat in ['Enterprise Applications', 'DevOps Platform', 'Observability', 'Collaboration', 'Cloud & Edge', 'Business Continuity', 'Other'] %}
+              <option value="{{ cat }}">{{ cat }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-primary" type="submit">Add</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

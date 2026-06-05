@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}My Work{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>My Work</h2>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">+ Quick Add</button>
+</div>
+
+<form method="GET" class="row g-2 mb-3">
+  <div class="col-auto">
+    <select name="status" class="form-select" onchange="this.form.submit()">
+      <option value="">All Status</option>
+      <option value="Open" {{ 'selected' if request.query_params.get('status') == 'Open' }}>Open</option>
+      <option value="Done" {{ 'selected' if request.query_params.get('status') == 'Done' }}>Done</option>
+      <option value="Blocked" {{ 'selected' if request.query_params.get('status') == 'Blocked' }}>Blocked</option>
+      <option value="Cancelled" {{ 'selected' if request.query_params.get('status') == 'Cancelled' }}>Cancelled</option>
+    </select>
+  </div>
+  <div class="col-auto">
+    <select name="assignee_id" class="form-select" onchange="this.form.submit()">
+      <option value="">All Members</option>
+      {% for u in users %}
+      <option value="{{ u.id }}" {{ 'selected' if request.query_params.get('assignee_id')|string == u.id|string }}>{{ u.display_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <input type="text" name="q" class="form-control" placeholder="Search..." value="{{ request.query_params.get('q', '') }}">
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-outline-secondary" type="submit">Filter</button>
+  </div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead class="table-dark">
+      <tr>
+        <th>Title</th>
+        <th>Requester</th>
+        <th>Service</th>
+        <th>Source</th>
+        <th>Age</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in work_items %}
+      <tr>
+        <td>
+          <a href="/work-items/{{ item.id }}/edit" class="text-decoration-none">{{ item.title }}</a>
+        </td>
+        <td>{{ item.requester_name or '-' }}</td>
+        <td>{{ item.service.name if item.service else '-' }}</td>
+        <td>{{ item.source }}</td>
+        <td class="{{ 'text-warning' if item.age_days > 3 and item.age_days <= 7 else 'text-danger' if item.age_days > 7 }}">
+          {{ item.age_days }}d
+        </td>
+        <td>
+          {% if item.status == 'Open' %}
+            <span class="badge bg-primary">Open</span>
+          {% elif item.status == 'Done' %}
+            <span class="badge bg-success">Done</span>
+          {% elif item.status == 'Blocked' %}
+            <span class="badge bg-warning text-dark">Blocked</span>
+          {% else %}
+            <span class="badge bg-secondary">{{ item.status }}</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if item.status == 'Open' or item.status == 'Blocked' %}
+          <form method="POST" action="/work-items/{{ item.id }}/done" style="display:inline">
+            <button class="btn btn-sm btn-success" title="Done">&#10003;</button>
+          </form>
+          {% endif %}
+          {% if item.status == 'Open' %}
+          <form method="POST" action="/work-items/{{ item.id }}/blocked" style="display:inline" onsubmit="return setBlockReason(this, {{ item.id }})">
+            <input type="hidden" name="reason" id="reason-{{ item.id }}" value="">
+            <button class="btn btn-sm btn-warning" title="Blocked">&#8855;</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="text-center text-muted">No work items found</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="/work-items">
+        <div class="modal-header"><h5>Quick Add Task</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Title *</label>
+            <input type="text" name="title" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Service</label>
+            <select name="service_id" class="form-select">
+              <option value="">-- None --</option>
+              {% for s in services %}
+              <option value="{{ s.id }}">{{ s.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Work Type</label>
+            <select name="work_type" class="form-select">
+              {% for wt in ['Incident', 'Request', 'Project', 'Audit', 'Consulting', 'Improvement', 'PoC', 'Meeting', 'Training', 'Vendor', 'Risk', 'Other'] %}
+              <option value="{{ wt }}">{{ wt }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Requester Name</label>
+            <input type="text" name="requester_name" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Assignee</label>
+            <select name="assignee_id" class="form-select">
+              <option value="">-- Unassigned --</option>
+              {% for u in users %}
+              <option value="{{ u.id }}">{{ u.display_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Estimate Hours</label>
+            <input type="number" step="0.5" name="estimate_hours" class="form-control">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" type="submit">Add Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function setBlockReason(form, id) {
+  var reason = prompt('Block reason:');
+  if (reason === null) return false;
+  document.getElementById('reason-' + id).value = reason;
+  return true;
+}
+
+document.getElementById('addModal').addEventListener('hidden.bs.modal', function () {
+  this.querySelector('form').reset();
+});
+</script>
+
+{% endblock %}
