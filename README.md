@@ -60,6 +60,26 @@ Set capacity / leave / meeting hours per member per month.
 
 ![Capacity Management](screenshots/capacity.png)
 
+### Trend Reports 📈
+Monthly demand vs actual hours — bar chart showing 6-month trend with estimated vs actual hours and items done line.
+
+![Trend Reports](screenshots/trends.png)
+
+### Triage 🔥
+"What's on fire" — items sorted by urgency: critical services first, oldest items first. Color-coded by age (red > 14d, yellow > 7d).
+
+![Triage](screenshots/triage.png)
+
+### KPI Metrics 📊
+Throughput chart (weekly items done), WIP by member, average cycle time, SLA breach rate.
+
+![KPI Metrics](screenshots/kpi.png)
+
+### Requester Status Portal 🔍
+Self-service check for requesters — enter your name to see the current status of all your work items without interrupting the team.
+
+![Requester Status Portal](screenshots/requester.png)
+
 ## 🧱 Tech Stack
 
 | Layer | Technology |
@@ -86,8 +106,9 @@ opsdash/
 │   │   ├── services.py        # Service catalog
 │   │   ├── users.py           # User management
 │   │   ├── intake.py          # Teams, SDP, Zabbix intake APIs
-│   │   ├── dashboards.py      # 4 dashboards + CSV exports
-│   │   └── capacity.py        # Capacity management
+│   │   ├── dashboards.py      # 7 dashboards + CSV exports
+│   │   ├── capacity.py        # Capacity management
+│   │   └── requester.py       # Requester status portal
 │   ├── services/
 │   │   ├── parser.py          # Teams command parser
 │   │   ├── sdp_sync.py        # SDP ticket sync
@@ -99,7 +120,12 @@ opsdash/
 │       ├── services.html
 │       ├── users.html
 │       ├── capacity.html
-│       ├── dashboard_*.html   # 4 dashboard templates
+│       ├── dashboard_*.html   # 7 dashboard templates
+│       ├── dashboard_trends.html
+│       ├── dashboard_kpi.html
+│       ├── triage.html
+│       └── requester_status.html
+├── cli.py                     # Terminal UI (ops ls, add, done, blocked, dashboard)
 ├── sync_sdp.py                # SDP sync script (cron)
 ├── sync_zabbix.py             # Zabbix sync script (cron)
 ├── seed.py                    # Demo data
@@ -252,6 +278,12 @@ print(r.status_code)
 - [x] Sprint 3 — Dashboards + CSV Export
 - [x] Sprint 4 — SDP + Zabbix Sync
 - [x] Sprint 5 — Capacity + Demand vs Capacity
+- [x] CLI tool (terminal UI — ls, add, done, blocked, dashboard)
+- [x] Trend Reports dashboard (Chart.js, monthly trends)
+- [x] Triage page ("What's on fire")
+- [x] KPI Metrics dashboard (throughput, cycle time, WIP, SLA)
+- [x] Requester Status Portal (public read-only)
+- [x] Auto-report script (Teams monthly report)
 - [ ] AI classifier (auto-classify service/type)
 - [x] Daily Teams digest
 - [x] Leader alerts (utilization > 120%, stale items, requester spikes)
