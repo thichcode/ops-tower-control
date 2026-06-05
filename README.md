@@ -85,6 +85,13 @@ Self-service check for requesters — enter your name to see the current status 
 
 ![Requester Status Portal](screenshots/requester.png)
 
+### Retention Risk 🧠
+Anomaly detection dashboard — z-score analysis across 6 signals (leave, throughput, cycle time, utilization, blocked ratio, meetings) to identify members at risk of burnout or disengagement. High/Medium/Low risk levels with per-member detail breakdown.
+
+![Retention Risk](screenshots/retention.png)
+
+![Retention Detail](screenshots/retention_detail.png)
+
 ## 🧱 Tech Stack
 
 | Layer | Technology |
@@ -113,11 +120,13 @@ opsdash/
 │   │   ├── intake.py          # Teams, SDP, Zabbix intake APIs
 │   │   ├── dashboards.py      # 7 dashboards + CSV exports
 │   │   ├── capacity.py        # Capacity management
-│   │   └── requester.py       # Requester status portal
+│   │   ├── requester.py       # Requester status portal
+│   │   └── retention.py       # Retention risk dashboard
 │   ├── services/
 │   │   ├── parser.py          # Teams command parser
 │   │   ├── sdp_sync.py        # SDP ticket sync
-│   │   └── zabbix_sync.py     # Zabbix problem sync
+│   │   ├── zabbix_sync.py     # Zabbix problem sync
+│   │   └── retention_alerts.py # Retention risk alerts
 │   └── templates/
 │       ├── base.html
 │       ├── my_work.html
@@ -130,11 +139,14 @@ opsdash/
 │       ├── dashboard_trends.html
 │       ├── dashboard_kpi.html
 │       ├── triage.html
-│       └── requester_status.html
+│       ├── requester_status.html
+│       ├── retention.html
+│       └── retention_detail.html
 ├── cli.py                     # Terminal UI (ops ls, add, done, blocked, dashboard)
 ├── sync_sdp.py                # SDP sync script (cron)
 ├── sync_zabbix.py             # Zabbix sync script (cron)
 ├── seed.py                    # Demo data
+├── retention_alerts.py        # Retention risk alert script (cron)
 ├── requirements.txt
 └── docs/
     └── guides/
@@ -291,6 +303,7 @@ print(r.status_code)
 - [x] KPI Metrics dashboard (throughput, cycle time, WIP, SLA)
 - [x] Requester Status Portal (public read-only)
 - [x] Auto-report script (Teams monthly report)
+- [x] Retention Risk Prediction (z-score anomaly detection, dashboard, alerts)
 - [ ] AI classifier (auto-classify service/type)
 - [x] Daily Teams digest
 - [x] Leader alerts (utilization > 120%, stale items, requester spikes)
