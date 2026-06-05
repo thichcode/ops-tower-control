@@ -23,8 +23,8 @@
           <td>{{ m.month }}</td>
           <td class="text-end">{{ m.total }}</td>
           <td class="text-end">{{ m.done }}</td>
-          <td class="text-end">{{ "%.1f"|format(m.estimated) }}</td>
-          <td class="text-end">{{ "%.1f"|format(m.actual) }}</td>
+          <td class="text-end">{{ "%.1f" % m.estimated }}</td>
+          <td class="text-end">{{ "%.1f" % m.actual }}</td>
         </tr>
         {% endfor %}
       </tbody>

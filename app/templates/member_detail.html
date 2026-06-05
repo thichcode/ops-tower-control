@@ -51,12 +51,12 @@
       <div class="card-header">{{ month_key }} — Demand vs Capacity</div>
       <div class="card-body">
         <table class="table table-sm mb-0">
-          <tr><td>Capacity</td><td class="text-end"><strong>{{ "%.1f"|format(capacity_hours) }}h</strong></td></tr>
-          <tr><td>Leave</td><td class="text-end">{{ "%.1f"|format(leave_hours) }}h</td></tr>
-          <tr><td>Meetings</td><td class="text-end">{{ "%.1f"|format(meeting_hours) }}h</td></tr>
+          <tr><td>Capacity</td><td class="text-end"><strong>{{ "%.1f" % capacity_hours }}h</strong></td></tr>
+          <tr><td>Leave</td><td class="text-end">{{ "%.1f" % leave_hours }}h</td></tr>
+          <tr><td>Meetings</td><td class="text-end">{{ "%.1f" % meeting_hours }}h</td></tr>
           <tr class="table-{{ 'danger' if util_pct > 100 else 'warning' if util_pct > 80 else 'success' }}">
             <td><strong>Available / Demand</strong></td>
-            <td class="text-end"><strong>{{ "%.1f"|format(available_hours) }}h / {{ "%.1f"|format(demand_hours) }}h ({{ util_pct }}%)</strong></td>
+            <td class="text-end"><strong>{{ "%.1f" % available_hours }}h / {{ "%.1f" % demand_hours }}h ({{ util_pct }}%)</strong></td>
           </tr>
         </table>
       </div>

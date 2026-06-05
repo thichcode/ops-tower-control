@@ -26,7 +26,7 @@
         <ul class="list-unstyled small mb-3">
           {% set sig = s.signals %}
           {% if sig.leave_z > 2 %}
-          <li class="text-danger">📈 Leave: {{ "%.1f"|format(sig.leave_current) }}h (z={{ sig.leave_z }})</li>
+          <li class="text-danger">📈 Leave: {{ "%.1f" % sig.leave_current }}h (z={{ sig.leave_z }})</li>
           {% endif %}
           {% if sig.throughput_z < -2 %}
           <li class="text-danger">📉 Throughput: {{ sig.throughput_current }}/wk (was {{ sig.throughput_previous }})</li>
@@ -38,10 +38,10 @@
           <li class="text-danger">🔋 Utilization: {{ sig.utilization_pct }}%</li>
           {% endif %}
           {% if sig.meeting_z > 2 %}
-          <li class="text-danger">📅 Meetings: {{ "%.1f"|format(sig.meeting_current) }}h (z={{ sig.meeting_z }})</li>
+          <li class="text-danger">📅 Meetings: {{ "%.1f" % sig.meeting_current }}h (z={{ sig.meeting_z }})</li>
           {% endif %}
           {% if sig.blocked_ratio_z > 2 %}
-          <li class="text-danger">🚫 Blocked ratio: {{ "%.1f"|format(sig.blocked_ratio_current * 100) }}%</li>
+          <li class="text-danger">🚫 Blocked ratio: {{ "%.1f" % (sig.blocked_ratio_current * 100) }}%</li>
           {% endif %}
           {% if s.flag_count == 0 %}
           <li class="text-success">✅ All signals normal</li>
