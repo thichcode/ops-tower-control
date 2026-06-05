@@ -92,3 +92,10 @@ def trigger_alerts(dry_run: bool = False, db: Session = Depends(get_db)):
     from app.services.leader_alerts import send_leader_alerts
     result = send_leader_alerts(db, dry_run=dry_run)
     return result
+
+
+@router.post("/retention")
+def trigger_retention_check(dry_run: bool = False, db: Session = Depends(get_db)):
+    from app.services.retention_alerts import check_retention_alerts
+    result = check_retention_alerts(db, dry_run=dry_run)
+    return result
