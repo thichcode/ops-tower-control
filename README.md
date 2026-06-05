@@ -92,6 +92,11 @@ Anomaly detection dashboard — z-score analysis across 6 signals (leave, throug
 
 ![Retention Detail](screenshots/retention_detail.png)
 
+### Employee Scorecard 🏆
+Quarterly/yearly scorecard ranking members across 7 criteria: Productivity, Efficiency, Reliability, Versatility, Improvement, Dedication, and Risk Improvement. CSV export available.
+
+![Employee Scorecard](screenshots/performance.png)
+
 ## 🧱 Tech Stack
 
 | Layer | Technology |
