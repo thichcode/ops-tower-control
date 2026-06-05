@@ -28,22 +28,37 @@ Your team operates multiple enterprise platforms — ServiceDesk, GitLab, Kubern
 | Combine all sources | Teams, SDP, Zabbix, Manual — unified view |
 | Export reports | CSV export on every dashboard |
 
-## 🖼️ Dashboards
+## 🖼️ Screenshots
 
 ### My Work
-Filterable table of all work items. Quick Add, 1-click Done/Blocked. Age coloring: yellow > 3d, red > 7d.
+Filterable table — Quick Add, 1-click Done/Blocked. Age coloring: yellow > 3d, red > 7d.
 
-### Top Requesters
-Who is requesting the most work? Open, Done, Blocked counts + Estimated hours + Demand percentage.
-
-### Workload by Member
-Who is overloaded? Open items per member. Members with > 3 open items highlighted.
-
-### Work by Service
-Which service consumes the most effort? Track by service catalog.
+![My Work](screenshots/mywork.png)
 
 ### Demand vs Capacity
-Set monthly capacity per member, compare against estimated demand. Visual cards showing: Capacity, Demand, Gap, Utilization. **Red alert** when demand exceeds capacity.
+Set monthly capacity per member. 4 KPI cards: Capacity, Demand, Gap, Utilization. Red alert when overloaded.
+
+![Demand vs Capacity](screenshots/dvc.png)
+
+### Top Requesters
+Who assigns the most work? Open/Done/Blocked counts + estimated hours + demand %.
+
+![Top Requesters](screenshots/requesters.png)
+
+### Workload by Member
+Who's overloaded? Open items per member. Yellow highlight > 3 open.
+
+![Workload by Member](screenshots/workload.png)
+
+### Work by Service
+Which service consumes the most effort?
+
+![Work by Service](screenshots/services_dash.png)
+
+### Capacity Management
+Set capacity / leave / meeting hours per member per month.
+
+![Capacity Management](screenshots/capacity.png)
 
 ## 🧱 Tech Stack
 
