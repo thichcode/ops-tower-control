@@ -19,6 +19,8 @@ def retention_dashboard(request: Request, db: Session = Depends(get_db)):
     for s in scores:
         if s.user_id not in members:
             user = db.query(User).filter(User.id == s.user_id).first()
+            if not user:
+                continue
             members[s.user_id] = {"user": user, "current": s, "history": []}
         members[s.user_id]["history"].append(s)
         if s.created_at > members[s.user_id]["current"].created_at:
@@ -39,7 +41,7 @@ def retention_detail(user_id: int, request: Request, db: Session = Depends(get_d
     if not user:
         return TemplateResponse("retention.html", {"request": request, "members": []})
 
-    compute_member_scores(db, user_id)
+    result = compute_member_scores(db, user_id)
     history = db.query(RetentionScore).filter(
         RetentionScore.user_id == user_id,
     ).order_by(RetentionScore.created_at.desc()).limit(6).all()
@@ -47,5 +49,6 @@ def retention_detail(user_id: int, request: Request, db: Session = Depends(get_d
     return TemplateResponse("retention_detail.html", {
         "request": request,
         "member": user,
+        "result": result,
         "history": history,
     })
