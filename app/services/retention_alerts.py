@@ -16,10 +16,21 @@ def check_retention_alerts(db, dry_run=False):
         RetentionScore.month == month_key,
     ).all()
 
+    user_ids = list(set(s.user_id for s in scores))
+    user_map = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()}
+
+    all_prev = db.query(RetentionScore).filter(
+        RetentionScore.month < month_key,
+    ).order_by(RetentionScore.month.desc()).all()
+    prev_map = {}
+    for s in all_prev:
+        if s.user_id not in prev_map:
+            prev_map[s.user_id] = s
+
     alerts = []
 
     for s in scores:
-        user = db.query(User).filter(User.id == s.user_id).first()
+        user = user_map.get(s.user_id)
         name = user.display_name if user else f"User #{s.user_id}"
 
         if s.risk_level == "High" and s.flag_count >= 3:
@@ -31,10 +42,7 @@ def check_retention_alerts(db, dry_run=False):
                 "detail": f"{name} has {s.flag_count} risk flags — High retention risk",
             })
 
-        prev = db.query(RetentionScore).filter(
-            RetentionScore.user_id == s.user_id,
-            RetentionScore.month < month_key,
-        ).order_by(RetentionScore.month.desc()).first()
+        prev = prev_map.get(s.user_id)
 
         if prev and prev.risk_level == "Medium" and s.risk_level == "High":
             alerts.append({
@@ -53,13 +61,16 @@ def check_retention_alerts(db, dry_run=False):
             "title": f"⚠️ {len(alerts)} Retention Alerts",
             "facts": [{"name": a["member"], "value": a["detail"]} for a in alerts],
         }]
-        result = send_teams_card(
-            webhook_url=TEAMS_ALERT_WEBHOOK,
-            title=f"Retention Risk Alerts — {month_key}",
-            summary=f"{len(alerts)} retention alerts",
-            sections=sections,
-            color="E81123",
-        )
-        return {"alerts": alerts, "send_result": result}
+        try:
+            result = send_teams_card(
+                webhook_url=TEAMS_ALERT_WEBHOOK,
+                title=f"Retention Risk Alerts — {month_key}",
+                summary=f"{len(alerts)} retention alerts",
+                sections=sections,
+                color="E81123",
+            )
+            return {"alerts": alerts, "send_result": result}
+        except Exception as e:
+            return {"alerts": alerts, "error": str(e)}
 
     return {"alerts": alerts}
