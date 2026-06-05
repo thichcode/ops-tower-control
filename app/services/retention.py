@@ -1,6 +1,7 @@
 import statistics
 from datetime import datetime, timezone, timedelta
-from sqlalchemy import func, case
+from typing import Optional
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models import User, WorkItem, Capacity, RetentionScore
 
@@ -19,8 +20,11 @@ def _month_key(year, month):
     return f"{year}-{month:02d}"
 
 
-def get_historical_values(db, user_id, field_getter, month_count=6):
-    now = datetime.now(timezone.utc)
+def get_historical_values(
+    db: Session, user_id: int, field_getter, month_count: int = 6, now: Optional[datetime] = None
+) -> list:
+    if now is None:
+        now = datetime.now(timezone.utc)
     values = []
     for i in range(1, month_count + 1):
         m = now.month - i
@@ -103,8 +107,11 @@ def get_blocked_ratio(db, user_id, year, month):
     return blocked / total
 
 
-def get_weekly_throughput(db, user_id):
-    now = datetime.now(timezone.utc)
+def get_weekly_throughput(
+    db: Session, user_id: int, now: Optional[datetime] = None
+) -> tuple:
+    if now is None:
+        now = datetime.now(timezone.utc)
     recent = []
     prev = []
     for i in range(12):
@@ -136,10 +143,10 @@ def compute_member_scores(db, user_id, now=None):
     current_meetings = get_meeting_hours(db, user_id, year, month)
     current_cycle_time = get_cycle_time(db, user_id, year, month)
     current_blocked_ratio = get_blocked_ratio(db, user_id, year, month)
-    recent_tp, prev_tp, recent_weekly, prev_weekly = get_weekly_throughput(db, user_id)
+    recent_tp, prev_tp, recent_weekly, prev_weekly = get_weekly_throughput(db, user_id, now=now)
 
-    historical_leave = get_historical_values(db, user_id, get_leave_hours, 6)
-    historical_meetings = get_historical_values(db, user_id, get_meeting_hours, 6)
+    historical_leave = get_historical_values(db, user_id, get_leave_hours, 6, now=now)
+    historical_meetings = get_historical_values(db, user_id, get_meeting_hours, 6, now=now)
 
     def cycle_time_getter(db, user_id, y, m):
         return get_cycle_time(db, user_id, y, m)
@@ -155,9 +162,9 @@ def compute_member_scores(db, user_id, now=None):
         return (demand / avail) * 100
 
     utilization_pct = utilization_getter(db, user_id, year, month)
-    historical_cycle_times = get_historical_values(db, user_id, cycle_time_getter, 3)
-    historical_blocked_ratios = get_historical_values(db, user_id, blocked_ratio_getter, 3)
-    historical_utilizations = get_historical_values(db, user_id, utilization_getter, 3)
+    historical_cycle_times = get_historical_values(db, user_id, cycle_time_getter, 3, now=now)
+    historical_blocked_ratios = get_historical_values(db, user_id, blocked_ratio_getter, 3, now=now)
+    historical_utilizations = get_historical_values(db, user_id, utilization_getter, 3, now=now)
 
     leave_z = compute_z_score(current_leave, historical_leave)
     meeting_z = compute_z_score(current_meetings, historical_meetings)
