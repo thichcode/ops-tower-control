@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Triage — What's On Fire{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>🔥 Triage — What's On Fire</h2>
+  <span class="badge bg-danger fs-6">{{ items|length }} open items</span>
+</div>
+
+<p class="text-muted">Items sorted by urgency: critical services first, then by age (oldest first).</p>
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead class="table-dark">
+      <tr>
+        <th>#</th>
+        <th>Title</th>
+        <th>Service</th>
+        <th>Assignee</th>
+        <th>Age</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr class="{{ 'table-danger' if item.is_critical and item.age > 3 else 'table-warning' if item.age > 7 else 'table-danger' if item.age > 14 }}">
+        <td>#{{ item.id }}</td>
+        <td>
+          <a href="/work-items/{{ item.id }}/edit" class="text-decoration-none">{{ item.title }}</a>
+          {% if item.blocked_reason %}<br><small class="text-muted">Blocked: {{ item.blocked_reason }}</small>{% endif %}
+        </td>
+        <td>{% if item.is_critical %}<span class="badge bg-danger">🔴 {{ item.service }}</span>{% else %}{{ item.service }}{% endif %}</td>
+        <td>{{ item.assignee }}</td>
+        <td>
+          {% if item.age > 14 %}
+            <span class="badge bg-danger">{{ item.age }}d</span>
+          {% elif item.age > 7 %}
+            <span class="badge bg-warning text-dark">{{ item.age }}d</span>
+          {% else %}
+            {{ item.age }}d
+          {% endif %}
+        </td>
+        <td>
+          {% if item.status == 'Blocked' %}
+            <span class="badge bg-warning text-dark">Blocked</span>
+          {% else %}
+            <span class="badge bg-primary">Open</span>
+          {% endif %}
+        </td>
+        <td>
+          <form method="POST" action="/work-items/{{ item.id }}/done" style="display:inline">
+            <button class="btn btn-sm btn-success" title="Done">✓</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="text-center text-muted">Nothing on fire — all clear!</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="text-muted small">
+  <span class="text-danger">Red</span> = critical service + age > 3, or age > 14. &nbsp;
+  <span class="text-warning">Yellow</span> = age > 7.
+</p>
+
+{% endblock %}

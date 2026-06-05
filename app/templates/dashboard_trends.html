@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Trend Reports{% endblock %}
+{% block content %}
+
+<h2 class="mb-3">Trend Reports</h2>
+<p class="text-muted">Monthly demand vs actual — last 6 months</p>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-12">
+    <canvas id="trendChart" height="100"></canvas>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr><th>Month</th><th class="text-end">Items Created</th><th class="text-end">Items Done</th><th class="text-end">Est. Hours</th><th class="text-end">Actual Hours</th></tr>
+      </thead>
+      <tbody>
+        {% for m in months %}
+        <tr>
+          <td>{{ m.month }}</td>
+          <td class="text-end">{{ m.total }}</td>
+          <td class="text-end">{{ m.done }}</td>
+          <td class="text-end">{{ "%.1f"|format(m.estimated) }}</td>
+          <td class="text-end">{{ "%.1f"|format(m.actual) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+const ctx = document.getElementById('trendChart').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: [{% for m in months %}'{{ m.month }}',{% endfor %}],
+    datasets: [
+      { label: 'Est. Hours', data: [{% for m in months %}{{ m.estimated }},{% endfor %}], backgroundColor: 'rgba(13,110,253,0.6)' },
+      { label: 'Actual Hours', data: [{% for m in months %}{{ m.actual }},{% endfor %}], backgroundColor: 'rgba(25,135,84,0.6)' },
+      { label: 'Items Done', data: [{% for m in months %}{{ m.done }},{% endfor %}], type: 'line', borderColor: '#ffc107', tension: 0.3, yAxisID: 'y1' },
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'bottom' } },
+    scales: { y: { beginAtZero: true, title: { display: true, text: 'Hours' } }, y1: { position: 'right', beginAtZero: true, title: { display: true, text: 'Items' } } }
+  }
+});
+</script>
+
+{% endblock %}

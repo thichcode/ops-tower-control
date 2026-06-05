@@ -349,3 +349,147 @@ def export_services(months: Optional[int] = Query(None), db: Session = Depends(g
         ["Service", "Total", "Open", "Done", "Blocked", "Estimated Hours"],
         [[r.name, int(r.total), int(r.open or 0), int(r.done or 0), int(r.blocked or 0), float(r.estimated or 0)] for r in rows],
     )
+
+
+@router.get("/trends")
+def trends(request: Request, db: Session = Depends(get_db)):
+    now = datetime.now(timezone.utc)
+    from calendar import monthrange
+
+    months_data = []
+    for i in range(6):
+        m = now.month - i
+        y = now.year
+        while m < 1:
+            m += 12
+            y -= 1
+        start = datetime(y, m, 1, tzinfo=timezone.utc)
+        _, last = monthrange(y, m)
+        end = datetime(y, m, last, 23, 59, 59, tzinfo=timezone.utc)
+
+        items = db.query(
+            func.coalesce(func.sum(WorkItem.estimate_hours), 0).label("estimated"),
+            func.coalesce(func.sum(WorkItem.actual_hours), 0).label("actual"),
+            func.count(WorkItem.id).label("total"),
+            func.sum(case((WorkItem.status == "Done", 1), else_=0)).label("done_count"),
+        ).filter(
+            WorkItem.created_at >= start,
+            WorkItem.created_at <= end,
+        ).first()
+
+        months_data.append({
+            "month": f"{y}-{m:02d}",
+            "estimated": float(items.estimated or 0),
+            "actual": float(items.actual or 0),
+            "total": int(items.total or 0),
+            "done": int(items.done_count or 0),
+        })
+
+    months_data.reverse()
+
+    return TemplateResponse("dashboard_trends.html", {
+        "request": request,
+        "months": months_data,
+    })
+
+
+@router.get("/triage")
+def triage(request: Request, db: Session = Depends(get_db)):
+    now = datetime.now(timezone.utc)
+    critical_names = {"Kubernetes", "Cloudflare", "Backup"}
+    critical_services = db.query(Service).filter(Service.name.in_(critical_names)).all()
+    critical_ids = [s.id for s in critical_services]
+
+    items = db.query(WorkItem).filter(
+        WorkItem.status.in_(["Open", "Blocked"])
+    ).order_by(
+        case((WorkItem.service_id.in_(critical_ids), 0), else_=1),
+        WorkItem.created_at.asc(),
+    ).all()
+
+    triage_items = []
+    for i in items:
+        created = i.created_at.replace(tzinfo=timezone.utc) if i.created_at.tzinfo is None else i.created_at
+        age = (now - created).days
+        is_critical = i.service_id in critical_ids
+        svc_name = i.service.name if i.service else "-"
+        triage_items.append({
+            "id": i.id,
+            "title": i.title,
+            "status": i.status,
+            "service": svc_name,
+            "assignee": i.assignee.display_name if i.assignee else "-",
+            "age": age,
+            "is_critical": is_critical,
+            "blocked_reason": i.blocked_reason,
+        })
+
+    return TemplateResponse("triage.html", {
+        "request": request,
+        "items": triage_items,
+    })
+
+
+@router.get("/kpi")
+def kpi_metrics(request: Request, db: Session = Depends(get_db)):
+    now = datetime.now(timezone.utc)
+
+    # Throughput (items done per week, last 8 weeks)
+    throughput = []
+    for i in range(8):
+        from datetime import timedelta
+        w_end = now - timedelta(weeks=i)
+        w_start = w_end - timedelta(weeks=1)
+        done_count = db.query(func.count(WorkItem.id)).filter(
+            WorkItem.status == "Done",
+            WorkItem.completed_at >= w_start,
+            WorkItem.completed_at <= w_end,
+        ).scalar()
+        throughput.append({
+            "week": w_start.strftime("%m/%d"),
+            "done": int(done_count or 0),
+        })
+    throughput.reverse()
+
+    # Cycle time (avg days from created to completed for Done items)
+    done_items = db.query(
+        func.avg(
+            func.julianday(WorkItem.completed_at) - func.julianday(WorkItem.created_at)
+        )
+    ).filter(
+        WorkItem.status == "Done",
+        WorkItem.completed_at is not None,
+    ).scalar()
+    cycle_time = round(float(done_items or 0), 1)
+
+    # WIP by member
+    wip_members = db.query(
+        User.display_name,
+        func.count(WorkItem.id).label("wip"),
+    ).outerjoin(WorkItem, User.id == WorkItem.assignee_id).filter(
+        User.is_active == True,
+        WorkItem.status == "Open",
+    ).group_by(User.display_name).order_by(func.count(WorkItem.id).desc()).all()
+
+    # SLA breach (items open > 7 days)
+    stale_threshold = now.replace(day=1) - __import__("datetime").timedelta(days=1)
+    sla_breach = db.query(func.count(WorkItem.id)).filter(
+        WorkItem.status.in_(["Open", "Blocked"]),
+        WorkItem.created_at < stale_threshold.replace(day=1),
+    ).scalar()
+
+    total_active = db.query(func.count(WorkItem.id)).filter(
+        WorkItem.status.in_(["Open", "Blocked"]),
+    ).scalar() or 1
+
+    sla_breach_rate = round(int(sla_breach or 0) / int(total_active) * 100, 1)
+
+    return TemplateResponse("dashboard_kpi.html", {
+        "request": request,
+        "throughput": throughput,
+        "cycle_time": cycle_time,
+        "wip_members": [{"name": m.display_name, "wip": int(m.wip or 0)} for m in wip_members],
+        "sla_breach": int(sla_breach or 0),
+        "sla_breach_rate": sla_breach_rate,
+        "total_active": int(total_active),
+    })
