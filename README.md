@@ -60,6 +60,11 @@ Set capacity / leave / meeting hours per member per month.
 
 ![Capacity Management](screenshots/capacity.png)
 
+### Member Detail 👤
+Per-member dashboard: KPI cards (Open/Blocked/Done), Demand vs Capacity for current month, cycle time, weekly throughput chart, WIP by service, and all their work items in one page.
+
+![Member Detail](screenshots/member_detail.png)
+
 ### Trend Reports 📈
 Monthly demand vs actual hours — bar chart showing 6-month trend with estimated vs actual hours and items done line.
 
@@ -104,7 +109,7 @@ opsdash/
 │   ├── routers/
 │   │   ├── work_items.py      # My Work, CRUD, Done/Blocked
 │   │   ├── services.py        # Service catalog
-│   │   ├── users.py           # User management
+│   │   ├── users.py           # User management + member detail page
 │   │   ├── intake.py          # Teams, SDP, Zabbix intake APIs
 │   │   ├── dashboards.py      # 7 dashboards + CSV exports
 │   │   ├── capacity.py        # Capacity management
@@ -121,6 +126,7 @@ opsdash/
 │       ├── users.html
 │       ├── capacity.html
 │       ├── dashboard_*.html   # 7 dashboard templates
+│       ├── member_detail.html
 │       ├── dashboard_trends.html
 │       ├── dashboard_kpi.html
 │       ├── triage.html
@@ -278,6 +284,7 @@ print(r.status_code)
 - [x] Sprint 3 — Dashboards + CSV Export
 - [x] Sprint 4 — SDP + Zabbix Sync
 - [x] Sprint 5 — Capacity + Demand vs Capacity
+- [x] Member Detail page (per-member dashboard with KPIs, throughput, WIP, cycle time)
 - [x] CLI tool (terminal UI — ls, add, done, blocked, dashboard)
 - [x] Trend Reports dashboard (Chart.js, monthly trends)
 - [x] Triage page ("What's on fire")

@@ -14,7 +14,7 @@
   <tbody>
     {% for u in users %}
     <tr>
-      <td>{{ u.display_name }}</td>
+      <td><a href="/users/{{ u.id }}" class="text-decoration-none fw-bold">{{ u.display_name }}</a></td>
       <td>{{ u.email }}</td>
       <td>{{ u.role }}</td>
       <td>{{ 'Yes' if u.is_active else 'No' }}</td>

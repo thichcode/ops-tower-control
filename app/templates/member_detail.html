@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}{{ member.display_name }} — Member Detail{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>{{ member.display_name }}</h2>
+  <div>
+    <a href="/capacity" class="btn btn-outline-primary btn-sm">Capacity Settings</a>
+    <a href="/users" class="btn btn-outline-secondary btn-sm">All Members</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card text-center border-primary h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Open</h6>
+        <h3 class="text-primary">{{ open_count }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center border-warning h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Blocked</h6>
+        <h3 class="text-warning">{{ blocked_count }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center border-success h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Done</h6>
+        <h3 class="text-success">{{ done_count }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center border-secondary h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Total Items</h6>
+        <h3>{{ total_count }}</h3>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">{{ month_key }} — Demand vs Capacity</div>
+      <div class="card-body">
+        <table class="table table-sm mb-0">
+          <tr><td>Capacity</td><td class="text-end"><strong>{{ "%.1f"|format(capacity_hours) }}h</strong></td></tr>
+          <tr><td>Leave</td><td class="text-end">{{ "%.1f"|format(leave_hours) }}h</td></tr>
+          <tr><td>Meetings</td><td class="text-end">{{ "%.1f"|format(meeting_hours) }}h</td></tr>
+          <tr class="table-{{ 'danger' if util_pct > 100 else 'warning' if util_pct > 80 else 'success' }}">
+            <td><strong>Available / Demand</strong></td>
+            <td class="text-end"><strong>{{ "%.1f"|format(available_hours) }}h / {{ "%.1f"|format(demand_hours) }}h ({{ util_pct }}%)</strong></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100">
+      <div class="card-header">Cycle Time</div>
+      <div class="card-body text-center">
+        <h2 class="text-info">{{ cycle_time }}d</h2>
+        <small class="text-muted">Avg created → completed</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100">
+      <div class="card-header">Throughput (8 weeks)</div>
+      <div class="card-body text-center">
+        <h2 class="text-success">{{ throughput|sum(attribute='done') }}</h2>
+        <small class="text-muted">Items completed</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">Weekly Throughput</div>
+      <div class="card-body">
+        <canvas id="throughputChart" height="80"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">WIP by Service</div>
+      <div class="card-body">
+        {% if wip_services %}
+        <table class="table table-sm mb-0">
+          {% for ws in wip_services %}
+          <tr><td>{{ ws.service }}</td><td class="text-end"><span class="badge bg-primary">{{ ws.count }}</span></td></tr>
+          {% endfor %}
+        </table>
+        {% else %}
+        <p class="text-muted mb-0">No open items</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<h5 class="mb-2">All Work Items</h5>
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead class="table-dark">
+      <tr>
+        <th>#</th>
+        <th>Title</th>
+        <th>Service</th>
+        <th>Status</th>
+        <th>Age</th>
+        <th>Created</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr class="{{ 'table-warning' if item.age_days > 3 and item.status != 'Done' }}{{ 'table-danger' if item.age_days > 7 and item.status != 'Done' }}">
+        <td>#{{ item.id }}</td>
+        <td><a href="/work-items/{{ item.id }}/edit" class="text-decoration-none">{{ item.title }}</a></td>
+        <td>{{ item.service.name if item.service else '-' }}</td>
+        <td>
+          {% if item.status == 'Open' %}
+            <span class="badge bg-primary">Open</span>
+          {% elif item.status == 'Done' %}
+            <span class="badge bg-success">Done</span>
+          {% elif item.status == 'Blocked' %}
+            <span class="badge bg-warning text-dark">Blocked</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if item.age_days > 7 and item.status != 'Done' %}
+            <span class="badge bg-danger">{{ item.age_days }}d</span>
+          {% elif item.age_days > 3 and item.status != 'Done' %}
+            <span class="badge bg-warning text-dark">{{ item.age_days }}d</span>
+          {% else %}
+            {{ item.age_days }}d
+          {% endif %}
+        </td>
+        <td>{{ item.created_at.strftime('%m/%d') if item.created_at else '-' }}</td>
+        <td>
+          {% if item.status != 'Done' %}
+          <form method="POST" action="/work-items/{{ item.id }}/done" style="display:inline">
+            <button class="btn btn-sm btn-success" title="Done">✓</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="text-center text-muted">No items assigned</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+new Chart(document.getElementById('throughputChart'), {
+  type: 'bar',
+  data: {
+    labels: [{% for w in throughput %}'{{ w.week }}',{% endfor %}],
+    datasets: [{ label: 'Done', data: [{% for w in throughput %}{{ w.done }},{% endfor %}], backgroundColor: 'rgba(25,135,84,0.6)' }]
+  },
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+});
+</script>
+
+{% endblock %}

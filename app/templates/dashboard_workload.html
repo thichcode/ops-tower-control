@@ -36,7 +36,7 @@
     <tbody>
       {% for r in data %}
       <tr class="{{ 'table-warning' if r.open > 3 }}">
-        <td>{{ r.member }}</td>
+        <td><a href="/users/{{ r.id }}" class="text-decoration-none">{{ r.member }}</a></td>
         <td class="text-center"><span class="badge bg-primary">{{ r.open }}</span></td>
         <td class="text-center"><span class="badge bg-success">{{ r.done }}</span></td>
         <td class="text-center">{% if r.blocked %}<span class="badge bg-warning text-dark">{{ r.blocked }}</span>{% else %}-{% endif %}</td>

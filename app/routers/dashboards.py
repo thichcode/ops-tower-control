@@ -72,6 +72,7 @@ def workload_by_member(
     db: Session = Depends(get_db),
 ):
     base = db.query(
+        User.id,
         User.display_name,
         func.count(WorkItem.id).label("total"),
         func.sum(case((WorkItem.status == "Open", 1), else_=0)).label("open_count"),
@@ -84,12 +85,13 @@ def workload_by_member(
         since = datetime.now(timezone.utc).replace(day=1)
         base = base.filter(WorkItem.created_at >= since)
 
-    rows = base.group_by(User.display_name).order_by(func.count(WorkItem.id).desc()).all()
+    rows = base.group_by(User.id, User.display_name).order_by(func.count(WorkItem.id).desc()).all()
 
     data = []
     for r in rows:
         data.append({
             "member": r.display_name,
+            "id": r.id,
             "open": int(r.open_count or 0),
             "done": int(r.done_count or 0),
             "blocked": int(r.blocked_count or 0),
