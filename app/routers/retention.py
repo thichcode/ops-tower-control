@@ -9,7 +9,7 @@ from app.templates import TemplateResponse
 router = APIRouter(prefix="/retention", tags=["retention"])
 
 
-@router.get("/retention")
+@router.get("")
 def retention_dashboard(request: Request, db: Session = Depends(get_db)):
     compute_all_scores(db)
 
@@ -33,7 +33,7 @@ def retention_dashboard(request: Request, db: Session = Depends(get_db)):
     return TemplateResponse("retention.html", {"request": request, "members": sorted_members})
 
 
-@router.get("/retention/{user_id}/detail")
+@router.get("/{user_id}/detail")
 def retention_detail(user_id: int, request: Request, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
