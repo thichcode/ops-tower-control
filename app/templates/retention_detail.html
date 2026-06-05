@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ member.display_name }} — Retention Detail{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>{{ member.display_name }} — Retention Detail</h2>
+  <a href="/retention" class="btn btn-outline-secondary btn-sm">← Back</a>
+</div>
+
+{% set sig = result.signals %}
+{% set risk_color = 'danger' if result.risk_level == 'High' else 'warning' if result.risk_level == 'Medium' else 'success' %}
+
+<div class="card border-{{ risk_color }} mb-4">
+  <div class="card-header bg-{{ risk_color }} text-white">
+    Current Risk: <strong>{{ result.risk_level }}</strong> ({{ result.flag_count }} flags) — {{ result.month }}
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="card h-100">
+          <div class="card-body text-center">
+            <h6>Leave Hours</h6>
+            <h4>{{ "%.1f"|format(sig.leave_current) }}h</h4>
+            <small class="{% if sig.leave_z > 2 %}text-danger{% endif %}">z = {{ sig.leave_z }}</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card h-100">
+          <div class="card-body text-center">
+            <h6>Throughput</h6>
+            <h4>{{ sig.throughput_current }}/wk</h4>
+            <small class="{% if sig.throughput_z < -2 %}text-danger{% endif %}">was {{ sig.throughput_previous }}/wk</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card h-100">
+          <div class="card-body text-center">
+            <h6>Cycle Time</h6>
+            <h4>{{ sig.cycle_time_current }}d</h4>
+            <small class="{% if sig.cycle_time_z > 2 %}text-danger{% endif %}">z = {{ sig.cycle_time_z }}</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card h-100">
+          <div class="card-body text-center">
+            <h6>Utilization</h6>
+            <h4 class="{% if sig.utilization_pct > 100 or sig.utilization_pct < 30 %}text-danger{% endif %}">{{ sig.utilization_pct }}%</h4>
+            <small>z = {{ sig.utilization_z }}</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card h-100">
+          <div class="card-body text-center">
+            <h6>Blocked Ratio</h6>
+            <h4>{{ "%.1f"|format(sig.blocked_ratio_current * 100) }}%</h4>
+            <small class="{% if sig.blocked_ratio_z > 2 %}text-danger{% endif %}">z = {{ sig.blocked_ratio_z }}</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card h-100">
+          <div class="card-body text-center">
+            <h6>Meeting Hours</h6>
+            <h4>{{ "%.1f"|format(sig.meeting_current) }}h</h4>
+            <small class="{% if sig.meeting_z > 2 %}text-danger{% endif %}">z = {{ sig.meeting_z }}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if history %}
+<h5 class="mb-2">Risk History</h5>
+<div class="table-responsive">
+  <table class="table table-sm">
+    <thead>
+      <tr><th>Month</th><th>Risk</th><th>Flags</th><th>Leave</th><th>Throughput</th><th>Cycle Time</th><th>Util %</th><th>Blocked %</th><th>Meetings</th></tr>
+    </thead>
+    <tbody>
+      {% for h in history %}
+      <tr class="table-{{ 'danger' if h.risk_level == 'High' else 'warning' if h.risk_level == 'Medium' else 'success' }}">
+        <td>{{ h.month }}</td>
+        <td><span class="badge bg-{{ 'danger' if h.risk_level == 'High' else 'warning' if h.risk_level == 'Medium' else 'success' }}">{{ h.risk_level }}</span></td>
+        <td>{{ h.flag_count }}</td>
+        <td>{{ "%.1f"|format(h.signals.leave_current) if h.signals else '-' }}</td>
+        <td>{{ h.signals.throughput_current if h.signals else '-' }}/wk</td>
+        <td>{{ h.signals.cycle_time_current if h.signals else '-' }}d</td>
+        <td>{{ h.signals.utilization_pct if h.signals else '-' }}%</td>
+        <td>{{ "%.0f"|format(h.signals.blocked_ratio_current * 100) if h.signals else '-' }}%</td>
+        <td>{{ "%.1f"|format(h.signals.meeting_current) if h.signals else '-' }}h</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% endblock %}

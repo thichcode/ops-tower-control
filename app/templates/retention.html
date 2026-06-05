@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Retention Risk{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>🧠 Retention Risk Dashboard</h2>
+  <span class="text-muted">Anomaly detection based on member operational signals</span>
+</div>
+
+<div class="row g-3">
+  {% for m in members %}
+  {% set s = m.current %}
+  {% set risk_color = 'danger' if s.risk_level == 'High' else 'warning' if s.risk_level == 'Medium' else 'success' %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card border-{{ risk_color }} h-100">
+      <div class="card-header bg-{{ risk_color }} text-white d-flex justify-content-between align-items-center">
+        <strong>{{ m.user.display_name }}</strong>
+        <span class="badge bg-light text-dark">{{ s.flag_count }} flags</span>
+      </div>
+      <div class="card-body">
+        <h5 class="card-title">
+          <span class="badge bg-{{ risk_color }} fs-6">{{ s.risk_level }} Risk</span>
+        </h5>
+
+        {% if s.signals %}
+        <ul class="list-unstyled small mb-3">
+          {% set sig = s.signals %}
+          {% if sig.leave_z > 2 %}
+          <li class="text-danger">📈 Leave: {{ "%.1f"|format(sig.leave_current) }}h (z={{ sig.leave_z }})</li>
+          {% endif %}
+          {% if sig.throughput_z < -2 %}
+          <li class="text-danger">📉 Throughput: {{ sig.throughput_current }}/wk (was {{ sig.throughput_previous }})</li>
+          {% endif %}
+          {% if sig.cycle_time_z > 2 %}
+          <li class="text-danger">⏱ Cycle time: {{ sig.cycle_time_current }}d (z={{ sig.cycle_time_z }})</li>
+          {% endif %}
+          {% if sig.utilization_pct > 100 or sig.utilization_pct < 30 %}
+          <li class="text-danger">🔋 Utilization: {{ sig.utilization_pct }}%</li>
+          {% endif %}
+          {% if sig.meeting_z > 2 %}
+          <li class="text-danger">📅 Meetings: {{ "%.1f"|format(sig.meeting_current) }}h (z={{ sig.meeting_z }})</li>
+          {% endif %}
+          {% if sig.blocked_ratio_z > 2 %}
+          <li class="text-danger">🚫 Blocked ratio: {{ "%.1f"|format(sig.blocked_ratio_current * 100) }}%</li>
+          {% endif %}
+          {% if s.flag_count == 0 %}
+          <li class="text-success">✅ All signals normal</li>
+          {% endif %}
+        </ul>
+        {% endif %}
+
+        <a href="/retention/{{ m.user.id }}/detail" class="btn btn-outline-{{ risk_color }} btn-sm">View Details →</a>
+      </div>
+      <div class="card-footer text-muted small">
+        {{ s.month }} · Last updated {{ s.created_at.strftime('%m/%d %H:%M') if s.created_at else '-' }}
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="col-12">
+    <p class="text-muted text-center">No retention data yet. Scores are computed on first visit.</p>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="mt-4 p-3 bg-light rounded small">
+  <h6>🧪 How it works</h6>
+  <p class="mb-0">Z-score anomaly detection on 6 signals: leave hours, throughput, cycle time, utilization, blocked ratio, and meeting hours. |z| &gt; 2 = 1 flag. 0-1 flags → Low, 2 → Medium, 3+ → High risk.</p>
+</div>
+
+{% endblock %}
