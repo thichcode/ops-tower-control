@@ -1,4 +1,7 @@
+import time
+
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -8,17 +11,27 @@ from app.templates import TemplateResponse
 
 router = APIRouter(prefix="/retention", tags=["retention"])
 
+_last_computed = 0.0
+
 
 @router.get("")
 def retention_dashboard(request: Request, db: Session = Depends(get_db)):
-    compute_all_scores(db)
+    global _last_computed
+    now = time.time()
+    if now - _last_computed > 60:
+        compute_all_scores(db)
+        _last_computed = now
 
     scores = db.query(RetentionScore).all()
+
+    user_ids = list(set(s.user_id for s in scores))
+    users = db.query(User).filter(User.id.in_(user_ids)).all()
+    user_map = {u.id: u for u in users}
 
     members = {}
     for s in scores:
         if s.user_id not in members:
-            user = db.query(User).filter(User.id == s.user_id).first()
+            user = user_map.get(s.user_id)
             if not user:
                 continue
             members[s.user_id] = {"user": user, "current": s, "history": []}
@@ -39,7 +52,7 @@ def retention_dashboard(request: Request, db: Session = Depends(get_db)):
 def retention_detail(user_id: int, request: Request, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        return TemplateResponse("retention.html", {"request": request, "members": []})
+        return RedirectResponse(url="/retention", status_code=303)
 
     result = compute_member_scores(db, user_id)
     history = db.query(RetentionScore).filter(
