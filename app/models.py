@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Text, Numeric, Boolean, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, Text, Numeric, Boolean, ForeignKey, DateTime, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 
@@ -64,5 +64,19 @@ class Capacity(Base):
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User")
+
+
+class RetentionScore(Base):
+    __tablename__ = "retention_scores"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    month = Column(Text, nullable=False)
+    risk_level = Column(Text, nullable=False, default="Low")
+    flag_count = Column(Integer, default=0)
+    signals = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User")
