@@ -495,3 +495,114 @@ def kpi_metrics(request: Request, db: Session = Depends(get_db)):
         "sla_breach_rate": sla_breach_rate,
         "total_active": int(total_active),
     })
+
+
+@router.get("/executive")
+def executive_summary(request: Request, db: Session = Depends(get_db)):
+    from app.models import RetentionScore
+    from app.services.performance import compute_performance, Period
+
+    now = datetime.now(timezone.utc)
+    current_month = now.strftime("%Y-%m")
+    current_year = now.year
+    current_quarter = (now.month - 1) // 3 + 1
+
+    # Card 1: Retention high-risk (top 5 non-Low)
+    retention_cards = db.query(RetentionScore).filter(
+        RetentionScore.month == current_month,
+        RetentionScore.risk_level != "Low",
+    ).order_by(
+        RetentionScore.flag_count.desc(),
+    ).limit(5).all()
+
+    retention_data = []
+    for r in retention_cards:
+        user = db.query(User).filter(User.id == r.user_id).first()
+        signals = r.signals or {}
+        flagged = []
+        if signals.get("leave_z", 0) > 2:
+            flagged.append(f"Leave {signals.get('leave_current', 0):.0f}h (z={signals.get('leave_z')})")
+        if signals.get("throughput_z", 0) < -2:
+            flagged.append(f"Throughput {signals.get('throughput_current')}/wk (z={signals.get('throughput_z')})")
+        if signals.get("cycle_time_z", 0) > 2:
+            flagged.append(f"Cycle {signals.get('cycle_time_current', 0):.1f}d (z={signals.get('cycle_time_z')})")
+        if signals.get("utilization_pct", 0) > 100 or signals.get("utilization_pct", 0) < 30:
+            flagged.append(f"Util {signals.get('utilization_pct', 0):.0f}%")
+        if signals.get("meeting_z", 0) > 2:
+            flagged.append(f"Meetings {signals.get('meeting_current', 0):.0f}h (z={signals.get('meeting_z')})")
+        if signals.get("blocked_ratio_z", 0) > 2:
+            flagged.append(f"Blocked {signals.get('blocked_ratio_current', 0)*100:.0f}%")
+        retention_data.append({
+            "user": user,
+            "risk_level": r.risk_level,
+            "flag_count": r.flag_count,
+            "flagged_signals": flagged[:2],
+        })
+
+    # Card 2: Scorecard top/bottom 3
+    period = Period("quarter", current_year, current_quarter)
+    perf_results = compute_performance(db, period)
+    scorecard_top = perf_results[:3] if len(perf_results) >= 3 else perf_results
+    scorecard_bottom = perf_results[-3:] if len(perf_results) >= 3 else []
+
+    # Card 3: SLA Breach (open > 30 days)
+    from datetime import timedelta
+    sla_threshold = now - timedelta(days=30)
+    sla_items_query = db.query(WorkItem).filter(
+        WorkItem.status.in_(["Open", "Blocked"]),
+        WorkItem.created_at < sla_threshold,
+    ).order_by(WorkItem.created_at.asc()).limit(5).all()
+
+    total_active = db.query(func.count(WorkItem.id)).filter(
+        WorkItem.status.in_(["Open", "Blocked"]),
+    ).scalar() or 0
+    sla_count = db.query(func.count(WorkItem.id)).filter(
+        WorkItem.status.in_(["Open", "Blocked"]),
+        WorkItem.created_at < sla_threshold,
+    ).scalar() or 0
+    sla_rate = round(int(sla_count) / int(total_active) * 100, 1) if total_active > 0 else 0
+
+    sla_items = []
+    for item in sla_items_query:
+        created = item.created_at.replace(tzinfo=timezone.utc) if item.created_at.tzinfo is None else item.created_at
+        sla_items.append({
+            "id": item.id,
+            "title": item.title,
+            "assignee": item.assignee.display_name if item.assignee else "Unassigned",
+            "days_open": (now - created).days,
+            "service": item.service.name if item.service else "-",
+        })
+
+    # Card 4: Stale Critical (oldest in Kubernetes/Cloudflare/Backup)
+    critical_names = {"Kubernetes", "Cloudflare", "Backup"}
+    critical_services = db.query(Service).filter(Service.name.in_(critical_names)).all()
+    critical_ids = [s.id for s in critical_services]
+
+    stale_items_query = db.query(WorkItem).filter(
+        WorkItem.status.in_(["Open", "Blocked"]),
+        WorkItem.service_id.in_(critical_ids),
+    ).order_by(WorkItem.created_at.asc()).limit(5).all()
+
+    stale_items = []
+    for item in stale_items_query:
+        created = item.created_at.replace(tzinfo=timezone.utc) if item.created_at.tzinfo is None else item.created_at
+        stale_items.append({
+            "id": item.id,
+            "title": item.title,
+            "assignee": item.assignee.display_name if item.assignee else "Unassigned",
+            "days_open": (now - created).days,
+            "service": item.service.name if item.service else "-",
+        })
+
+    return TemplateResponse("dashboard_executive.html", {
+        "request": request,
+        "retention_data": retention_data,
+        "scorecard_top": scorecard_top,
+        "scorecard_bottom": scorecard_bottom,
+        "sla_items": sla_items,
+        "sla_count": int(sla_count),
+        "sla_rate": sla_rate,
+        "total_active": int(total_active),
+        "stale_items": stale_items,
+        "current_month": current_month,
+    })

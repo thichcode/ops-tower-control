@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Executive Summary{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>📊 Executive Summary</h2>
+  <span class="text-muted">{{ current_month }} · 1-click situational view</span>
+</div>
+
+<div class="row g-3">
+
+  <!-- Card 1: Retention High Risk -->
+  <div class="col-md-3">
+    <div class="card border-danger h-100">
+      <div class="card-header bg-danger text-white d-flex justify-content-between">
+        <strong>🧠 Retention Risk</strong>
+        <span class="badge bg-light text-dark">{{ retention_data|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        {% if retention_data %}
+          <ul class="list-group list-group-flush">
+            {% for r in retention_data %}
+            {% set badge = 'danger' if r.risk_level == 'High' else 'warning' %}
+            <li class="list-group-item small">
+              <div class="d-flex justify-content-between align-items-start">
+                <a href="/retention/{{ r.user.id }}/detail" class="text-decoration-none fw-bold">{{ r.user.display_name }}</a>
+                <span class="badge bg-{{ badge }}">{{ r.risk_level }}</span>
+              </div>
+              {% for sig in r.flagged_signals %}
+              <div class="text-muted">• {{ sig }}</div>
+              {% endfor %}
+            </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="p-3 text-center text-muted small">✅ No high-risk members</div>
+        {% endif %}
+      </div>
+      <div class="card-footer text-center">
+        <a href="/retention" class="btn btn-outline-danger btn-sm">View All →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 2: Scorecard Top/Bottom 3 -->
+  <div class="col-md-3">
+    <div class="card border-warning h-100">
+      <div class="card-header bg-warning text-dark">
+        <strong>🏆 Scorecard</strong>
+      </div>
+      <div class="card-body p-0">
+        {% if scorecard_top %}
+        <div class="px-3 py-2 bg-light small fw-bold">⬆ Top 3</div>
+        <ul class="list-group list-group-flush">
+          {% for r in scorecard_top %}
+          {% set medal = '🥇' if r.overall_rank == 1 else '🥈' if r.overall_rank == 2 else '🥉' %}
+          <li class="list-group-item small">
+            <a href="/users/{{ r.user.id }}" class="text-decoration-none fw-bold">{{ medal }} {{ r.user.display_name }}</a>
+            <span class="float-end text-muted">#{{ r.overall_rank }} ({{ r.overall_score }})</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% if scorecard_bottom and scorecard_bottom|length > 0 and scorecard_bottom[0].user.id != scorecard_top[-1].user.id %}
+        <div class="px-3 py-2 bg-light small fw-bold border-top">⬇ Bottom 3</div>
+        <ul class="list-group list-group-flush">
+          {% for r in scorecard_bottom %}
+          <li class="list-group-item small">
+            <a href="/users/{{ r.user.id }}" class="text-decoration-none">{{ r.user.display_name }}</a>
+            <span class="float-end text-muted">#{{ r.overall_rank }} ({{ r.overall_score }})</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        {% else %}
+          <div class="p-3 text-center text-muted small">No scorecard data</div>
+        {% endif %}
+      </div>
+      <div class="card-footer text-center">
+        <a href="/performance" class="btn btn-outline-warning btn-sm">View All →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 3: SLA Breach -->
+  <div class="col-md-3">
+    <div class="card border-warning h-100">
+      <div class="card-header bg-warning text-dark d-flex justify-content-between">
+        <strong>⚠️ SLA Breach</strong>
+        <span class="badge bg-dark">{{ sla_count }} ({{ sla_rate }}%)</span>
+      </div>
+      <div class="card-body p-0">
+        {% if sla_items %}
+          <ul class="list-group list-group-flush">
+            {% for i in sla_items %}
+            <li class="list-group-item small">
+              <a href="/dashboard/triage" class="text-decoration-none">#{{ i.id }} {{ i.title[:35] }}{% if i.title|length > 35 %}…{% endif %}</a>
+              <div class="text-muted">👤 {{ i.assignee }} · {{ i.days_open }}d · {{ i.service }}</div>
+            </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="p-3 text-center text-muted small">✅ No SLA breaches</div>
+        {% endif %}
+      </div>
+      <div class="card-footer text-center">
+        <a href="/dashboard/triage" class="btn btn-outline-warning btn-sm">View Triage →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 4: Stale Critical -->
+  <div class="col-md-3">
+    <div class="card border-dark h-100">
+      <div class="card-header bg-dark text-white d-flex justify-content-between">
+        <strong>🔴 Stale Critical</strong>
+        <span class="badge bg-light text-dark">{{ stale_items|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        {% if stale_items %}
+          <ul class="list-group list-group-flush">
+            {% for i in stale_items %}
+            <li class="list-group-item small">
+              <a href="/dashboard/triage" class="text-decoration-none">#{{ i.id }} {{ i.title[:35] }}{% if i.title|length > 35 %}…{% endif %}</a>
+              <div class="text-muted">👤 {{ i.assignee }} · <span class="text-danger fw-bold">{{ i.days_open }}d</span> · {{ i.service }}</div>
+            </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="p-3 text-center text-muted small">✅ No stale critical items</div>
+        {% endif %}
+      </div>
+      <div class="card-footer text-center">
+        <a href="/dashboard/triage" class="btn btn-outline-dark btn-sm">View Triage →</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
