@@ -116,6 +116,37 @@ Boss-facing Vietnamese CSV report for reward/recognition proposals. Top 3 → "�
 | **ORM** | SQLAlchemy 2.0 |
 | **Templates** | Jinja2 + Bootstrap 5 |
 | **Migrations** | Alembic |
+| **Container** | Docker + Docker Compose |
+
+## 🚀 Deployment (Docker)
+
+### Production (PostgreSQL + web)
+```bash
+cp .env.example .env
+# Edit .env to set TEAMS_DIGEST_WEBHOOK and TEAMS_ALERT_WEBHOOK if needed
+docker compose up -d
+# Web: http://localhost:8000
+```
+
+Includes `web` (FastAPI) + `db` (PostgreSQL 16) services with healthchecks and persistent volumes.
+
+### Dev (SQLite, no DB service)
+```bash
+docker compose --profile dev up -d web-dev
+# Web: http://localhost:8000
+```
+
+### With Adminer (DB UI)
+```bash
+docker compose --profile tools up -d
+# Adminer: http://localhost:8080 (login: opsdash / opsdash / db)
+```
+
+### Stop & cleanup
+```bash
+docker compose down           # stop, keep volumes
+docker compose down -v        # stop + delete volumes (fresh start)
+```
 
 ## 📁 Project Structure
 

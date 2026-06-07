@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.database import engine, Base
+from app import models  # noqa: F401  ensure all models are registered before create_all
 
 Base.metadata.create_all(bind=engine)
 

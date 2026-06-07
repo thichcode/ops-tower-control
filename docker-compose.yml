@@ -1,0 +1,77 @@
+name: opsdash
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: opsdash:latest
+    container_name: opsdash-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://opsdash:opsdash@db:5432/opsdash}
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - web-data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  db:
+    image: postgres:16-alpine
+    container_name: opsdash-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: opsdash
+      POSTGRES_PASSWORD: opsdash
+      POSTGRES_DB: opsdash
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opsdash -d opsdash"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer:4.8.1
+    container_name: opsdash-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+      ADMINER_DESIGN: pepa-linha-dark
+    depends_on:
+      - db
+    profiles: ["tools"]
+
+  # --- Optional: dev profile uses SQLite (no db service needed) ---
+  web-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: opsdash:dev
+    container_name: opsdash-web-dev
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: sqlite:///./data/opsdash.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - web-dev-data:/app/data
+    profiles: ["dev"]
+
+volumes:
+  db-data:
+  web-data:
+  web-dev-data:
