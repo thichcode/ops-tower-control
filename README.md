@@ -102,6 +102,11 @@ Quarterly/yearly scorecard ranking members across 7 criteria: Productivity, Effi
 
 ![Employee Scorecard](screenshots/performance.png)
 
+### Reward Report 💰
+Boss-facing Vietnamese CSV report for reward/recognition proposals. Top 3 → "🥇 Đề xuất khen thưởng", Bottom 3 → "Cần hỗ trợ thêm", with team avg baseline, Δ kỳ trước, top strengths, and standout task evidence. Includes signature lines for approval workflow.
+
+![Reward Report](screenshots/reward_report.png)
+
 ## 🧱 Tech Stack
 
 | Layer | Technology |
