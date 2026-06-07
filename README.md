@@ -85,6 +85,11 @@ Self-service check for requesters — enter your name to see the current status 
 
 ![Requester Status Portal](screenshots/requester.png)
 
+### Executive Summary 📊
+One-glance situational view combining 4 critical leadership views in a 4-card grid: Retention high-risk members, Scorecard top/bottom 3, SLA breach items, and Stale critical services. 1-click navigation to detail pages.
+
+![Executive Summary](screenshots/executive.png)
+
 ### Retention Risk 🧠
 Anomaly detection dashboard — z-score analysis across 6 signals (leave, throughput, cycle time, utilization, blocked ratio, meetings) to identify members at risk of burnout or disengagement. High/Medium/Low risk levels with per-member detail breakdown.
 
@@ -123,7 +128,7 @@ opsdash/
 │   │   ├── services.py        # Service catalog
 │   │   ├── users.py           # User management + member detail page
 │   │   ├── intake.py          # Teams, SDP, Zabbix intake APIs
-│   │   ├── dashboards.py      # 7 dashboards + CSV exports
+│   │   ├── dashboards.py      # 8 dashboards (incl. executive summary) + CSV exports
 │   │   ├── capacity.py        # Capacity management
 │   │   ├── requester.py       # Requester status portal
 │   │   └── retention.py       # Retention risk dashboard
