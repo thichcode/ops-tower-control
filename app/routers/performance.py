@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, Request, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 import csv
 import io
+from datetime import datetime, timezone
 
 from app.database import get_db
-from app.models import User
+from app.models import User, WorkItem, Service
 from app.services.performance import compute_performance, get_available_periods, Period
 from app.templates import TemplateResponse
 
@@ -18,6 +20,106 @@ def parse_period(s: str) -> Period:
         parts = s.split("-Q")
         return Period("quarter", int(parts[0]), int(parts[1]))
     return Period("year", int(s))
+
+
+def get_crisis_resolver_tasks(db: Session, user_id: int, start, end, limit: int = 2) -> list:
+    """Top Done items on critical services (K8s/Cloudflare/Backup) for a user."""
+    critical_names = {"Kubernetes", "Cloudflare", "Backup"}
+    critical_services = db.query(Service).filter(Service.name.in_(critical_names)).all()
+    critical_ids = [s.id for s in critical_services]
+    if not critical_ids:
+        return []
+
+    items = db.query(WorkItem).filter(
+        WorkItem.assignee_id == user_id,
+        WorkItem.status == "Done",
+        WorkItem.service_id.in_(critical_ids),
+        WorkItem.completed_at >= start,
+        WorkItem.completed_at <= end,
+        WorkItem.completed_at.isnot(None),
+        WorkItem.created_at.isnot(None),
+    ).all()
+
+    items_with_cycle = []
+    for item in items:
+        completed = item.completed_at.replace(tzinfo=timezone.utc) if item.completed_at.tzinfo is None else item.completed_at
+        created = item.created_at.replace(tzinfo=timezone.utc) if item.created_at.tzinfo is None else item.created_at
+        cycle = (completed - created).total_seconds() / 86400
+        items_with_cycle.append({
+            "title": item.title,
+            "service": item.service.name if item.service else "-",
+            "cycle_days": round(cycle, 1),
+        })
+
+    items_with_cycle.sort(key=lambda x: x["cycle_days"])
+    return items_with_cycle[:limit]
+
+
+def get_speed_demon_tasks(db: Session, user_id: int, start, end, limit: int = 2) -> list:
+    """Fastest Done items for a user (lowest cycle time)."""
+    items = db.query(WorkItem).filter(
+        WorkItem.assignee_id == user_id,
+        WorkItem.status == "Done",
+        WorkItem.completed_at >= start,
+        WorkItem.completed_at <= end,
+        WorkItem.completed_at.isnot(None),
+        WorkItem.created_at.isnot(None),
+    ).all()
+
+    items_with_cycle = []
+    for item in items:
+        completed = item.completed_at.replace(tzinfo=timezone.utc) if item.completed_at.tzinfo is None else item.completed_at
+        created = item.created_at.replace(tzinfo=timezone.utc) if item.created_at.tzinfo is None else item.created_at
+        cycle = (completed - created).total_seconds() / 86400
+        if cycle < 0:
+            continue
+        items_with_cycle.append({
+            "title": item.title,
+            "service": item.service.name if item.service else "-",
+            "cycle_days": round(cycle, 1),
+        })
+
+    items_with_cycle.sort(key=lambda x: x["cycle_days"])
+    return items_with_cycle[:limit]
+
+
+def get_versatility_star_tasks(db: Session, user_id: int, start, end, limit: int = 2) -> list:
+    """Most diverse services worked on — show 1 sample task per service."""
+    items = db.query(WorkItem).filter(
+        WorkItem.assignee_id == user_id,
+        WorkItem.status == "Done",
+        WorkItem.completed_at >= start,
+        WorkItem.completed_at <= end,
+        WorkItem.service_id.isnot(None),
+    ).all()
+
+    by_service = {}
+    for item in items:
+        svc = item.service.name if item.service else None
+        if svc and svc not in by_service:
+            by_service[svc] = item.title
+
+    samples = [{"title": title, "service": svc} for svc, title in by_service.items()]
+    return samples[:limit]
+
+
+def get_most_improved_tasks(db: Session, user_id: int, start, end, limit: int = 2) -> list:
+    """Tasks completed in current period that didn't exist in prev — show recent Done items."""
+    items = db.query(WorkItem).filter(
+        WorkItem.assignee_id == user_id,
+        WorkItem.status == "Done",
+        WorkItem.completed_at >= start,
+        WorkItem.completed_at <= end,
+    ).order_by(WorkItem.completed_at.desc()).limit(limit).all()
+
+    return [
+        {
+            "title": item.title,
+            "service": item.service.name if item.service else "-",
+            "cycle_days": "—",
+        }
+        for item in items
+    ]
 
 
 @router.get("")
@@ -109,7 +211,6 @@ def export_reward_report(
     db: Session = Depends(get_db),
 ):
     """Boss-facing reward proposal report (Vietnamese)."""
-    from datetime import datetime
     from app.services.performance import METRIC_CONFIG
 
     available = get_available_periods(db)
@@ -118,6 +219,7 @@ def export_reward_report(
 
     current_period = parse_period(period)
     results = compute_performance(db, current_period)
+    period_start, period_end = current_period.date_range()
 
     # Team averages for baseline
     team_size = len(results)
@@ -186,8 +288,44 @@ def export_reward_report(
             recommendation,
         ])
 
-    # Footer
+    # === Standout Tasks Section ===
     writer.writerow([])
+    writer.writerow(["--- TASK NỔI BẬT (bằng chứng cụ thể) ---"])
+    writer.writerow([])
+
+    # Find top performer in each category (lowest rank number = best)
+    # Crisis Resolver: top 3 by productivity
+    crisis_top = sorted(results, key=lambda x: x["ranks"]["productivity"])[:3]
+    # Speed Demon: top 3 by efficiency (lower better)
+    speed_top = sorted(results, key=lambda x: x["ranks"]["efficiency"])[:3]
+    # Versatility Star: top 3 by versatility
+    versatile_top = sorted(results, key=lambda x: x["ranks"]["versatility"])[:3]
+    # Most Improved: top 3 by improvement
+    improved_top = sorted(results, key=lambda x: x["ranks"]["improvement"])[:3]
+
+    for category_label, category_top, task_extractor in [
+        ("🚨 CRISIS RESOLVER (giải quyết sự cố nghiêm trọng)", crisis_top, get_crisis_resolver_tasks),
+        ("⚡ SPEED DEMON (xử lý nhanh)", speed_top, get_speed_demon_tasks),
+        ("🎯 VERSATILITY STAR (đa năng, đa dịch vụ)", versatile_top, get_versatility_star_tasks),
+        ("📈 MOST IMPROVED (tiến bộ vượt bậc)", improved_top, get_most_improved_tasks),
+    ]:
+        writer.writerow([category_label])
+        writer.writerow(["Thành viên", "Service", "Task", "Thời gian xử lý (ngày)"])
+        for r in category_top:
+            tasks = task_extractor(db, r["user"].id, period_start, period_end, limit=2)
+            if not tasks:
+                writer.writerow([r["user"].display_name, "-", "(không có task trong kỳ)", "-"])
+                continue
+            for i, t in enumerate(tasks):
+                writer.writerow([
+                    r["user"].display_name if i == 0 else "",
+                    t.get("service", "-"),
+                    t["title"][:60] + ("…" if len(t["title"]) > 60 else ""),
+                    t.get("cycle_days", "—"),
+                ])
+        writer.writerow([])
+
+    # Footer
     writer.writerow(["--- Phần duyệt ---"])
     writer.writerow([])
     writer.writerow(["Người lập báo cáo", "", "Trưởng phòng", "", "Ban giám đốc"])
