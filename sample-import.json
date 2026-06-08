@@ -2,178 +2,122 @@
   "value": [
     {
       "id": "1685632800001",
-      "replyToId": null,
-      "etag": "1685632800001",
-      "messageType": "message",
-      "createdDateTime": "2026-06-01T09:15:00Z",
-      "lastModifiedDateTime": "2026-06-01T09:15:00Z",
       "channelId": "19:abc123@thread.tacv2",
       "conversationId": "19:abc123@thread.tacv2",
+      "createdDateTime": "2026-06-01T09:15:00Z",
       "from": {
-        "application": null,
-        "device": null,
         "user": {
           "displayName": "Engineer A",
-          "id": "user-id-001",
-          "userIdentityType": "aadUser"
+          "id": "user-id-001"
         }
       },
       "body": {
-        "content": "<p>Phục hồi DNS Cloudflare cho site chính</p><p>Cloudflare DNS bị outage, site chính down 20 phút. Đã restore từ cached config.</p><p>Thời gian xử lý: 30 phút</p>",
-        "contentType": "html"
+        "content": "Phục hồi DNS Cloudflare cho site chính\nCloudflare DNS bị outage, site chính down 20 phút. Đã restore từ cached config.\n[DONE]",
+        "contentType": "text"
       },
-      "subject": null,
-      "importance": "normal"
+      "subject": null
     },
     {
       "id": "1685719200002",
-      "replyToId": null,
-      "etag": "1685719200002",
-      "messageType": "message",
-      "createdDateTime": "2026-06-02T08:30:00Z",
-      "lastModifiedDateTime": "2026-06-02T08:30:00Z",
       "channelId": "19:abc123@thread.tacv2",
       "conversationId": "19:abc123@thread.tacv2",
+      "createdDateTime": "2026-06-02T08:30:00Z",
       "from": {
-        "application": null,
-        "device": null,
         "user": {
           "displayName": "Engineer C",
-          "id": "user-id-003",
-          "userIdentityType": "aadUser"
+          "id": "user-id-003"
         }
       },
       "body": {
-        "content": "<p>Upgrade Kubernetes cluster v1.28 → v1.29</p><p>Upgrade theo plan Q2. Rolling update 3 nodes, test workload migration trước khi upgrade production.</p><p>Estimate: 8h, Actual: 9h — Done</p>",
-        "contentType": "html"
+        "content": "Upgrade Kubernetes cluster v1.28 → v1.29\nUpgrade theo plan Q2. Rolling update 3 nodes, test workload migration trước khi upgrade production.\n[DONE]",
+        "contentType": "text"
       },
-      "subject": null,
-      "importance": "normal"
+      "subject": null
     },
     {
       "id": "1685805600003",
-      "replyToId": null,
-      "etag": "1685805600003",
-      "messageType": "message",
-      "createdDateTime": "2026-06-03T10:00:00Z",
-      "lastModifiedDateTime": "2026-06-03T10:00:00Z",
       "channelId": "19:abc123@thread.tacv2",
       "conversationId": "19:abc123@thread.tacv2",
+      "createdDateTime": "2026-06-03T10:00:00Z",
       "from": {
-        "application": null,
-        "device": null,
         "user": {
           "displayName": "Engineer B",
-          "id": "user-id-002",
-          "userIdentityType": "aadUser"
+          "id": "user-id-002"
         }
       },
       "body": {
-        "content": "Reset password VPN cho team Marketing\nTeam Marketing quên password VPN, yêu cầu reset. Đã gửi thông tin đăng nhập mới qua email.\nDone",
+        "content": "Reset password VPN cho team Marketing\nTeam Marketing quên password VPN, yêu cầu reset.\n[DONE]",
         "contentType": "text"
       },
-      "subject": null,
-      "importance": "normal"
+      "subject": null
     },
     {
       "id": "1685978400004",
-      "replyToId": null,
-      "etag": "1685978400004",
-      "messageType": "message",
-      "createdDateTime": "2026-06-05T14:20:00Z",
-      "lastModifiedDateTime": "2026-06-05T14:20:00Z",
       "channelId": "19:abc123@thread.tacv2",
       "conversationId": "19:abc123@thread.tacv2",
+      "createdDateTime": "2026-06-05T14:20:00Z",
       "from": {
-        "application": null,
-        "device": null,
         "user": {
           "displayName": "Engineer A",
-          "id": "user-id-001",
-          "userIdentityType": "aadUser"
+          "id": "user-id-001"
         }
       },
       "body": {
-        "content": "Cấu hình backup tự động cho database PostgreSQL\nThiết lập pg_dump cron job hàng ngày lúc 2:00 AM, lưu trữ 7 ngày, gửi thông báo khi fail.\nEstimate: 3h",
+        "content": "Cấu hình backup tự động cho database PostgreSQL\nThiết lập pg_dump cron job hàng ngày lúc 2:00 AM, lưu trữ 7 ngày.\n[OPEN]",
         "contentType": "text"
       },
-      "subject": null,
-      "importance": "normal"
+      "subject": null
     },
     {
       "id": "1686064800005",
-      "replyToId": null,
-      "etag": "1686064800005",
-      "messageType": "message",
-      "createdDateTime": "2026-06-04T11:45:00Z",
-      "lastModifiedDateTime": "2026-06-04T11:45:00Z",
       "channelId": "19:abc123@thread.tacv2",
       "conversationId": "19:abc123@thread.tacv2",
+      "createdDateTime": "2026-06-04T11:45:00Z",
       "from": {
-        "application": null,
-        "device": null,
         "user": {
           "displayName": "Engineer C",
-          "id": "user-id-003",
-          "userIdentityType": "aadUser"
+          "id": "user-id-003"
         }
       },
       "body": {
-        "content": "<p>Triển khai hệ thống monitoring Zabbix cho server mới</p><p>Cài Zabbix agent trên 5 server mới, cấu hình templates Linux/MySQL, thêm vào dashboard chính.</p><p>Estimate: 6h, Actual: 5.5h — Completed</p>",
-        "contentType": "html"
+        "content": "Triển khai hệ thống monitoring Zabbix cho server mới\nCài Zabbix agent trên 5 server mới, cấu hình templates Linux/MySQL.\n[DONE]",
+        "contentType": "text"
       },
-      "subject": null,
-      "importance": "normal"
+      "subject": null
     },
     {
       "id": "1686151200006",
-      "replyToId": null,
-      "etag": "1686151200006",
-      "messageType": "message",
-      "createdDateTime": "2026-06-06T16:00:00Z",
-      "lastModifiedDateTime": "2026-06-06T16:00:00Z",
       "channelId": "19:abc123@thread.tacv2",
       "conversationId": "19:abc123@thread.tacv2",
+      "createdDateTime": "2026-06-06T16:00:00Z",
       "from": {
-        "application": null,
-        "device": null,
         "user": {
           "displayName": "Engineer A",
-          "id": "user-id-001",
-          "userIdentityType": "aadUser"
+          "id": "user-id-001"
         }
       },
       "body": {
-        "content": "Khắc phục lỗi ServiceDesk API timeout\nAPI ServiceDesk timeout khi query quá 1000 records. Đã thêm pagination và caching Redis.\nEstimate: 4h, Actual: 3.5h — Done",
+        "content": "Khắc phục lỗi ServiceDesk API timeout\nAPI timeout khi query quá 1000 records. Đã thêm pagination và caching Redis.\n[DONE]",
         "contentType": "text"
       },
-      "subject": null,
-      "importance": "normal"
+      "subject": null
     },
     {
       "id": "1686237600007",
-      "replyToId": null,
-      "etag": "1686237600007",
-      "messageType": "message",
-      "createdDateTime": "2026-06-07T09:00:00Z",
-      "lastModifiedDateTime": "2026-06-07T09:00:00Z",
       "channelId": "19:abc123@thread.tacv2",
       "conversationId": "19:abc123@thread.tacv2",
+      "createdDateTime": "2026-06-07T09:00:00Z",
       "from": {
-        "application": null,
-        "device": null,
         "user": {
           "displayName": "Lead A",
-          "id": "user-id-004",
-          "userIdentityType": "aadUser"
+          "id": "user-id-004"
         }
       },
       "body": {
-        "content": "Meeting review Q2 với Ban giám đốc\nTrình bày báo cáo Q2, kết quả work items, capacity vs demand. Chuẩn bị slide và data export.\nDone",
+        "content": "Meeting review Q2 với Ban giám đốc\nTrình bày báo cáo Q2, kết quả work items, capacity vs demand.\n[DONE]",
         "contentType": "text"
       },
-      "subject": null,
-      "importance": "normal"
+      "subject": null
     }
   ]
 }

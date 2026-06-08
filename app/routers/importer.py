@@ -19,6 +19,14 @@ DONE_KEYWORDS = {"done", "completed", "hoàn thành", "xong", "đã xong", "reso
 BLOCKED_KEYWORDS = {"blocked", "halted", "stalled", "tạm dừng", "vướng", "chờ", "waiting", "pending"}
 OPEN_KEYWORDS = {"open", "in progress", "đang làm", "đang xử lý", "started", "bắt đầu"}
 
+# Convention tags: [DONE], [BLOCKED], [OPEN] at end of message
+STATUS_TAG_RE = re.compile(r"\[(DONE|XONG|HOÀN THÀNH|BLOCKED|TẠM DỪNG|VƯỚNG|OPEN|ĐANG LÀM)\]\s*$", re.IGNORECASE)
+STATUS_TAG_MAP = {
+    "DONE": "Done", "XONG": "Done", "HOÀN THÀNH": "Done",
+    "BLOCKED": "Blocked", "TẠM DỪNG": "Blocked", "VƯỚNG": "Blocked",
+    "OPEN": "Open", "ĐANG LÀM": "Open",
+}
+
 
 class _HTMLTextExtractor(HTMLParser):
     def __init__(self):
@@ -47,6 +55,14 @@ def detect_service(text: str) -> str:
 
 
 def detect_status(text: str) -> str:
+    """Detect status: first check convention tag [DONE]/[BLOCKED]/[OPEN], then keyword fallback."""
+    # Priority 1: convention tag at end of message
+    tag_match = STATUS_TAG_RE.search(text)
+    if tag_match:
+        tag = tag_match.group(1).upper()
+        return STATUS_TAG_MAP.get(tag, "Open")
+
+    # Priority 2: keyword detection (fallback)
     text_lower = text.lower()
     for kw in DONE_KEYWORDS:
         if kw in text_lower:
@@ -60,7 +76,7 @@ def detect_status(text: str) -> str:
 def extract_title_from_message(msg: dict) -> str:
     subject = (msg.get("subject") or "").strip()
     if subject:
-        return subject[:120]
+        return STATUS_TAG_RE.sub("", subject).strip()[:120]
 
     body = msg.get("body", {})
     if isinstance(body, dict):
@@ -70,6 +86,7 @@ def extract_title_from_message(msg: dict) -> str:
 
     text = strip_html(content) if "<" in content else content
     first_line = text.split("\n")[0].strip()
+    first_line = STATUS_TAG_RE.sub("", first_line).strip()
     return first_line[:120] if first_line else "(no subject)"
 
 
@@ -91,8 +108,11 @@ def parse_pa_message(msg: dict) -> dict:
 
     text = strip_html(content) if content_type == "html" or "<" in content else content
 
-    # Title = subject or first line
+    # Title = subject or first line (strip status tag)
     title = extract_title_from_message(msg)
+
+    # Clean description: strip tags from full text
+    clean_text = STATUS_TAG_RE.sub("", text).strip()
 
     # Detect service and status from full text
     service = detect_service(text)
@@ -110,7 +130,7 @@ def parse_pa_message(msg: dict) -> dict:
 
     return {
         "title": title,
-        "description": text if text != title else "",
+        "description": clean_text if clean_text != title else "",
         "service": service,
         "assignee": assignee,
         "status": status,

@@ -30,6 +30,11 @@
       {% if result.skipped > 0 %} · Skipped: {{ result.skipped }}{% endif %}
       {% if result.total %} · Total in file: {{ result.total }}{% endif %}
     </div>
+    {% elif result.skipped > 0 and result.imported == 0 %}
+    <div class="alert alert-warning">
+      <strong>⚠️ All tasks already exist</strong> ({{ result.skipped }} duplicates skipped).<br>
+      File: <code>{{ result.filename }}</code>
+    </div>
     {% else %}
     <div class="alert alert-danger">
       <strong>❌ Import failed:</strong> {{ result.error }}
@@ -99,11 +104,12 @@
 }</pre>
 
         <p class="small text-muted mb-0">
-          <strong>Power Automate auto-detection:</strong> title from first line/subject, assignee from <code>from.user.displayName</code>, 
-          service from keywords (Kubernetes/Cloudflare/Backup/...), status from keywords (done/blocked/open). 
-          <br><strong>Supported keys:</strong> <code>value[]</code>, <code>messages[]</code>, <code>tasks[]</code>, or single message object.
-          <br><strong>Defaults:</strong> status=Open, work_type=Other, source=Teams, created_at=now.
-          Duplicate detection: same title+assignee OR same <code>source_id</code> → skipped.
+          <strong>Status convention:</strong> Add <code>[DONE]</code>, <code>[BLOCKED]</code>, or <code>[OPEN]</code> at the end of your message. 
+          Parser detects this tag and sets status automatically. No tag = Open.
+          <br><strong>Supported tags:</strong> <code>[DONE]</code> <code>[XONG]</code> <code>[HOÀN THÀNH]</code> → Done · 
+          <code>[BLOCKED]</code> <code>[TẠM DỪNG]</code> <code>[VƯỚNG]</code> → Blocked · 
+          <code>[OPEN]</code> <code>[ĐANG LÀM]</code> → Open
+          <br><strong>Duplicate detection:</strong> same <code>source_id</code> (message ID) OR same title+assignee → skipped.
         </p>
       </div>
     </div>
