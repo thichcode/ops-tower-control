@@ -58,14 +58,37 @@
     <div class="card mt-4">
       <div class="card-header">JSON Format Guide</div>
       <div class="card-body">
-        <p class="small mb-2">Each team member collects their Teams messages, summarizes tasks, and saves as JSON:</p>
-        <pre class="bg-dark text-success p-3 rounded small mb-0">{
+        <h6>Format 1: Power Automate Teams Export (Recommended)</h6>
+        <p class="small mb-2">Export messages directly from Power Automate — auto-detects title, assignee, service, status:</p>
+        <pre class="bg-dark text-success p-3 rounded small mb-3">{
+  "value": [
+    {
+      "id": "message-id",
+      "channelId": "19:abc123@thread.tacv2",
+      "conversationId": "19:abc123@thread.tacv2",
+      "createdDateTime": "2026-06-01T09:15:00Z",
+      "from": {
+        "user": {
+          "displayName": "Engineer A"
+        }
+      },
+      "body": {
+        "content": "Phục hồi DNS Cloudflare cho site chính...",
+        "contentType": "html"
+      },
+      "subject": null
+    }
+  ]
+}</pre>
+
+        <h6>Format 2: Simple Tasks</h6>
+        <p class="small mb-2">Manual format with explicit fields:</p>
+        <pre class="bg-dark text-success p-3 rounded small mb-3">{
   "tasks": [
     {
       "title": "Task name",
       "description": "Optional details",
       "service": "Kubernetes",
-      "work_type": "Incident",
       "assignee": "Engineer A",
       "requester": "Boss Name",
       "estimate_hours": 2.5,
@@ -74,12 +97,13 @@
     }
   ]
 }</pre>
-        <p class="small text-muted mt-2 mb-0">
-          <strong>Fields:</strong> title (required), description, service, work_type, assignee, requester,
-          requester_email, estimate_hours, actual_hours, status (Open/Done/Blocked), blocked_reason,
-          created_at, completed_at, source_url, source_id.
-          <br><strong>Defaults:</strong> status=Open, work_type=Other, source=Manual, assignee=None, created_at=now.
-          Duplicate tasks (same title+assignee) are skipped.
+
+        <p class="small text-muted mb-0">
+          <strong>Power Automate auto-detection:</strong> title from first line/subject, assignee from <code>from.user.displayName</code>, 
+          service from keywords (Kubernetes/Cloudflare/Backup/...), status from keywords (done/blocked/open). 
+          <br><strong>Supported keys:</strong> <code>value[]</code>, <code>messages[]</code>, <code>tasks[]</code>, or single message object.
+          <br><strong>Defaults:</strong> status=Open, work_type=Other, source=Teams, created_at=now.
+          Duplicate detection: same title+assignee OR same <code>source_id</code> → skipped.
         </p>
       </div>
     </div>

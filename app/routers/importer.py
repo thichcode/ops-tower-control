@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, Request, UploadFile, File
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
+from html.parser import HTMLParser
+import re
 import json
 import os
 
@@ -10,6 +12,133 @@ from app.models import User, Service, WorkItem
 from app.templates import TemplateResponse
 
 router = APIRouter(prefix="/import", tags=["import"])
+
+KNOWN_SERVICES = ["Kubernetes", "Cloudflare", "Backup", "Zabbix", "ServiceDesk", "GitLab", "SharePoint", "VPN", "SVN"]
+
+DONE_KEYWORDS = {"done", "completed", "hoàn thành", "xong", "đã xong", "resolved", "đã resolve", "closed", "đã đóng"}
+BLOCKED_KEYWORDS = {"blocked", "halted", "stalled", "tạm dừng", "vướng", "chờ", "waiting", "pending"}
+OPEN_KEYWORDS = {"open", "in progress", "đang làm", "đang xử lý", "started", "bắt đầu"}
+
+
+class _HTMLTextExtractor(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self._parts = []
+
+    def handle_data(self, data):
+        self._parts.append(data)
+
+    def get_text(self):
+        return "".join(self._parts).strip()
+
+
+def strip_html(html: str) -> str:
+    extractor = _HTMLTextExtractor()
+    extractor.feed(html)
+    return extractor.get_text()
+
+
+def detect_service(text: str) -> str:
+    text_lower = text.lower()
+    for svc in KNOWN_SERVICES:
+        if svc.lower() in text_lower:
+            return svc
+    return ""
+
+
+def detect_status(text: str) -> str:
+    text_lower = text.lower()
+    for kw in DONE_KEYWORDS:
+        if kw in text_lower:
+            return "Done"
+    for kw in BLOCKED_KEYWORDS:
+        if kw in text_lower:
+            return "Blocked"
+    return "Open"
+
+
+def extract_title_from_message(msg: dict) -> str:
+    subject = (msg.get("subject") or "").strip()
+    if subject:
+        return subject[:120]
+
+    body = msg.get("body", {})
+    if isinstance(body, dict):
+        content = body.get("content", "")
+    else:
+        content = str(body)
+
+    text = strip_html(content) if "<" in content else content
+    first_line = text.split("\n")[0].strip()
+    return first_line[:120] if first_line else "(no subject)"
+
+
+def parse_pa_message(msg: dict) -> dict:
+    """Parse a single Power Automate Teams message into a task dict."""
+    # Extract assignee
+    from_data = msg.get("from", {})
+    user_data = from_data.get("user", from_data)
+    assignee = user_data.get("displayName", "")
+
+    # Extract body content
+    body = msg.get("body", {})
+    if isinstance(body, dict):
+        content = body.get("content", "")
+        content_type = body.get("contentType", "text")
+    else:
+        content = str(body)
+        content_type = "html" if "<" in content else "text"
+
+    text = strip_html(content) if content_type == "html" or "<" in content else content
+
+    # Title = subject or first line
+    title = extract_title_from_message(msg)
+
+    # Detect service and status from full text
+    service = detect_service(text)
+    status = detect_status(text)
+
+    # Parse date
+    created_at = msg.get("createdDateTime", "")
+
+    # Message ID for dedup
+    message_id = msg.get("id", msg.get("messageId", ""))
+
+    # Channel info
+    channel_id = msg.get("channelId", "")
+    conversation_id = msg.get("conversationId", "")
+
+    return {
+        "title": title,
+        "description": text if text != title else "",
+        "service": service,
+        "assignee": assignee,
+        "status": status,
+        "created_at": created_at,
+        "source_id": message_id,
+        "source_url": f"https://teams.microsoft.com/l/message/{channel_id}/{message_id}" if channel_id and message_id else "",
+    }
+
+
+def parse_file(data: dict) -> list:
+    """Detect format and return list of task dicts."""
+    # Format 1: Simple tasks[] — manual format
+    if "tasks" in data and isinstance(data["tasks"], list):
+        return data["tasks"]
+
+    # Format 2: Power Automate "value" array (Get messages action)
+    if "value" in data and isinstance(data["value"], list):
+        return [parse_pa_message(msg) for msg in data["value"]]
+
+    # Format 3: Power Automate "messages" array (custom flow)
+    if "messages" in data and isinstance(data["messages"], list):
+        return [parse_pa_message(msg) for msg in data["messages"]]
+
+    # Format 4: Single message (not array)
+    if "body" in data and ("from" in data or "createdDateTime" in data):
+        return [parse_pa_message(data)]
+
+    return []
 
 
 @router.get("", response_class=HTMLResponse)
@@ -51,11 +180,11 @@ async def import_upload(
             "result": {"success": False, "error": f"Invalid JSON: {e}", "imported": 0, "skipped": 0, "errors": []},
         })
 
-    tasks = data.get("tasks", [])
+    tasks = parse_file(data)
     if not tasks:
         return TemplateResponse("import.html", {
             "request": request,
-            "result": {"success": False, "error": "No 'tasks' array found in JSON", "imported": 0, "skipped": 0, "errors": []},
+            "result": {"success": False, "error": "No tasks found. Expected: 'tasks[]', 'value[]' (PA format), or 'messages[]'", "imported": 0, "skipped": 0, "errors": []},
         })
 
     imported = 0
@@ -64,7 +193,7 @@ async def import_upload(
 
     for i, task in enumerate(tasks):
         title = (task.get("title") or "").strip()
-        if not title:
+        if not title or title == "(no subject)":
             errors.append(f"Task #{i+1}: missing 'title'")
             skipped += 1
             continue
@@ -111,13 +240,20 @@ async def import_upload(
                 completed_at = datetime.fromisoformat(task["completed_at"].replace("Z", "+00:00"))
             except (ValueError, TypeError):
                 pass
+        elif status == "Done":
+            completed_at = datetime.now(timezone.utc)
 
-        # Check for duplicate (same title + assignee + created_at day)
-        title_match = db.query(WorkItem).filter(
-            WorkItem.title == title,
-            WorkItem.assignee_id == assignee_id,
-        ).first()
-        if title_match:
+        # Duplicate detection: same title + assignee OR same source_id
+        source_id = (task.get("source_id") or "").strip()
+        existing = None
+        if source_id:
+            existing = db.query(WorkItem).filter(WorkItem.source_id == source_id).first()
+        if not existing:
+            existing = db.query(WorkItem).filter(
+                WorkItem.title == title,
+                WorkItem.assignee_id == assignee_id,
+            ).first()
+        if existing:
             errors.append(f"Task #{i+1}: '{title[:40]}' already exists — skipped")
             skipped += 1
             continue
@@ -127,9 +263,9 @@ async def import_upload(
             description=task.get("description"),
             service_id=service_id,
             work_type=task.get("work_type", "Other"),
-            source="Manual",
+            source="Teams",
             source_url=task.get("source_url"),
-            source_id=task.get("source_id"),
+            source_id=source_id or None,
             requester_name=task.get("requester"),
             requester_email=task.get("requester_email"),
             assignee_id=assignee_id,
