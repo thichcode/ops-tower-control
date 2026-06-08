@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Import Tasks{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+  <div class="col-md-8">
+
+    <h2 class="mb-3">📥 Import Tasks from JSON</h2>
+
+    <div class="card mb-4">
+      <div class="card-header">Upload JSON File</div>
+      <div class="card-body">
+        <form method="POST" action="/import/upload" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label for="file" class="form-label">Select <code>.json</code> file</label>
+            <input type="file" name="file" id="file" accept=".json" class="form-control" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Upload & Import</button>
+          <a href="/import/sample" class="btn btn-outline-secondary btn-sm ms-2">⬇ Download Sample</a>
+        </form>
+      </div>
+    </div>
+
+    {% if result %}
+    {% if result.success %}
+    <div class="alert alert-success">
+      <strong>✅ Import successful!</strong><br>
+      File: <code>{{ result.filename }}</code><br>
+      Imported: <strong>{{ result.imported }}</strong> tasks
+      {% if result.skipped > 0 %} · Skipped: {{ result.skipped }}{% endif %}
+      {% if result.total %} · Total in file: {{ result.total }}{% endif %}
+    </div>
+    {% else %}
+    <div class="alert alert-danger">
+      <strong>❌ Import failed:</strong> {{ result.error }}
+    </div>
+    {% endif %}
+
+    {% if result.errors %}
+    <div class="card border-warning mb-4">
+      <div class="card-header bg-warning text-dark">Warnings ({{ result.errors|length }})</div>
+      <ul class="list-group list-group-flush small">
+        {% for err in result.errors %}
+        <li class="list-group-item text-muted">{{ err }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if result.imported > 0 %}
+    <div class="text-center">
+      <a href="/" class="btn btn-success">View Imported Tasks →</a>
+      <a href="/import" class="btn btn-outline-secondary ms-2">Import More</a>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <div class="card mt-4">
+      <div class="card-header">JSON Format Guide</div>
+      <div class="card-body">
+        <p class="small mb-2">Each team member collects their Teams messages, summarizes tasks, and saves as JSON:</p>
+        <pre class="bg-dark text-success p-3 rounded small mb-0">{
+  "tasks": [
+    {
+      "title": "Task name",
+      "description": "Optional details",
+      "service": "Kubernetes",
+      "work_type": "Incident",
+      "assignee": "Engineer A",
+      "requester": "Boss Name",
+      "estimate_hours": 2.5,
+      "status": "Open",
+      "created_at": "2026-06-01"
+    }
+  ]
+}</pre>
+        <p class="small text-muted mt-2 mb-0">
+          <strong>Fields:</strong> title (required), description, service, work_type, assignee, requester,
+          requester_email, estimate_hours, actual_hours, status (Open/Done/Blocked), blocked_reason,
+          created_at, completed_at, source_url, source_id.
+          <br><strong>Defaults:</strong> status=Open, work_type=Other, source=Manual, assignee=None, created_at=now.
+          Duplicate tasks (same title+assignee) are skipped.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

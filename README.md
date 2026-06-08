@@ -107,6 +107,11 @@ Boss-facing Vietnamese CSV report for reward/recognition proposals. Top 3 → "�
 
 ![Reward Report](screenshots/reward_report.png)
 
+### Task Import 📥
+Team members collect their own Teams messages, summarize into tasks, save as JSON file, and upload to Ops Control Tower. Duplicate detection, auto-create new assignees/services. Includes sample file download.
+
+![Import](screenshots/import.png)
+
 ## 🧱 Tech Stack
 
 | Layer | Technology |

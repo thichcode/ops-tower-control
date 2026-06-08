@@ -1,0 +1,92 @@
+{
+  "tasks": [
+    {
+      "title": "Phục hồi DNS Cloudflare cho site chính",
+      "description": "Cloudflare DNS bị outage, site chính down 20 phút. Đã restore từ cached config.",
+      "service": "Cloudflare",
+      "work_type": "Incident",
+      "assignee": "Engineer A",
+      "requester": "Trưởng phòng",
+      "estimate_hours": 1.0,
+      "actual_hours": 0.5,
+      "status": "Done",
+      "created_at": "2026-06-01",
+      "completed_at": "2026-06-01"
+    },
+    {
+      "title": "Upgrade Kubernetes cluster v1.28 → v1.29",
+      "description": "Upgrade theo plan Q2. Rolling update 3 nodes, test workload migration trước khi upgrade production.",
+      "service": "Kubernetes",
+      "work_type": "Task",
+      "assignee": "Engineer C",
+      "requester": "Tech Lead",
+      "estimate_hours": 8.0,
+      "actual_hours": 9.0,
+      "status": "Done",
+      "created_at": "2026-06-02",
+      "completed_at": "2026-06-05"
+    },
+    {
+      "title": "Reset password VPN cho team Marketing",
+      "description": "Team Marketing quên password VPN, yêu cầu reset. Đã gửi thông tin đăng nhập mới qua email.",
+      "service": "VPN",
+      "work_type": "Request",
+      "assignee": "Engineer B",
+      "requester": "Marketing Manager",
+      "estimate_hours": 0.5,
+      "actual_hours": 0.3,
+      "status": "Done",
+      "created_at": "2026-06-03",
+      "completed_at": "2026-06-03"
+    },
+    {
+      "title": "Cấu hình backup tự động cho database PostgreSQL",
+      "description": "Thiết lập pg_dump cron job hàng ngày lúc 2:00 AM, lưu trữ 7 ngày, gửi thông báo khi fail.",
+      "service": "Backup",
+      "work_type": "Task",
+      "assignee": "Engineer A",
+      "requester": "Trưởng phòng",
+      "estimate_hours": 3.0,
+      "status": "Open",
+      "created_at": "2026-06-05"
+    },
+    {
+      "title": "Triển khai hệ thốngmonitoring Zabbix cho server mới",
+      "description": "Cài Zabbix agent trên 5 server mới, cấu hình templates Linux/MySQL, thêm vào dashboard chính.",
+      "service": "Zabbix",
+      "work_type": "Task",
+      "assignee": "Engineer C",
+      "requester": "IT Manager",
+      "estimate_hours": 6.0,
+      "actual_hours": 5.5,
+      "status": "Done",
+      "created_at": "2026-06-04",
+      "completed_at": "2026-06-07"
+    },
+    {
+      "title": "Khắc phục lỗi ServiceDesk API timeout",
+      "description": "API ServiceDesk timeout khi query quá 1000 records. Đã thêm pagination và caching Redis.",
+      "service": "ServiceDesk",
+      "work_type": "Bug",
+      "assignee": "Engineer A",
+      "requester": "Help Desk Team",
+      "estimate_hours": 4.0,
+      "actual_hours": 3.5,
+      "status": "Done",
+      "created_at": "2026-06-06",
+      "completed_at": "2026-06-07"
+    },
+    {
+      "title": "Meeting review Q2 với Ban giám đốc",
+      "description": "Trình bày báo cáo Q2, kết quả work items, capacity vs demand. Chuẩn bị slide và data export.",
+      "service": "Other",
+      "work_type": "Meeting",
+      "assignee": "Lead A",
+      "requester": "Ban giám đốc",
+      "estimate_hours": 2.0,
+      "status": "Done",
+      "created_at": "2026-06-07",
+      "completed_at": "2026-06-07"
+    }
+  ]
+}

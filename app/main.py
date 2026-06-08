@@ -7,7 +7,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Ops Control Tower")
 
-from app.routers import work_items, services, users, intake, dashboards, capacity, requester, retention, performance
+from app.routers import work_items, services, users, intake, dashboards, capacity, requester, retention, performance, importer
 
 app.include_router(work_items.router)
 app.include_router(services.router)
@@ -18,3 +18,4 @@ app.include_router(capacity.router)
 app.include_router(requester.router)
 app.include_router(retention.router)
 app.include_router(performance.router)
+app.include_router(importer.router)
