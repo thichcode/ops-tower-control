@@ -100,12 +100,58 @@ class MemberIntakeTest(unittest.TestCase):
         item = self.db.query(WorkItem).one()
         self.assertIn("Needs review: unknown service", item.notes)
 
+    def test_imports_service_alias_with_confidence_note(self):
+        from app.services.member_intake import import_member_package
+
+        result = import_member_package(self.db, self.package(service_hint="dns"))
+
+        self.assertEqual(result["low_confidence"], 0)
+        item = self.db.query(WorkItem).one()
+        self.assertEqual(item.service.name, "Cloudflare")
+        self.assertIn("Confidence: assignee=1.00, service=0.85", item.notes)
+
+    def test_helper_fallback_assignee_is_low_confidence(self):
+        from app.services.member_intake import import_member_package
+
+        pkg = self.package(assignee_email="", assignee_name="")
+        result = import_member_package(self.db, pkg)
+
+        self.assertEqual(result["low_confidence"], 1)
+        item = self.db.query(WorkItem).one()
+        self.assertEqual(item.assignee.email, "engineer.a@example.com")
+        self.assertIn("assignee=0.70", item.notes)
+        self.assertIn("Needs review: low assignee confidence", item.notes)
+
     def test_package_intake_route_is_registered(self):
         from app.routers.intake import router
 
         paths = {route.path for route in router.routes}
 
         self.assertIn("/api/intake/package", paths)
+
+    def test_resolves_service_alias_with_confidence(self):
+        from app.services.intake_rules import resolve_service_alias
+
+        service_name, confidence, ambiguous = resolve_service_alias("please check k8s ingress")
+
+        self.assertEqual(service_name, "Kubernetes")
+        self.assertEqual(confidence, 0.85)
+        self.assertFalse(ambiguous)
+
+    def test_resolves_identity_alias_with_confidence(self):
+        from app.services.intake_rules import resolve_identity_alias
+
+        identity = resolve_identity_alias(
+            None,
+            "A Nguyen",
+            None,
+            None,
+            aliases={"engineer.a@example.com": ["A Nguyen"]},
+        )
+
+        self.assertEqual(identity["email"], "engineer.a@example.com")
+        self.assertEqual(identity["name"], "A Nguyen")
+        self.assertEqual(identity["confidence"], 0.85)
 
 
 if __name__ == "__main__":

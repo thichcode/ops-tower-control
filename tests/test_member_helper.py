@@ -68,6 +68,23 @@ class MemberHelperTest(unittest.TestCase):
 
         self.assertEqual(written, package)
 
+    def test_detects_service_alias_in_items(self):
+        from tools.member_helper import build_package
+
+        data = {
+            "items": [
+                {
+                    "source_id": "msg-1",
+                    "title": "Check dns issue",
+                    "body_excerpt": "dns broken",
+                }
+            ]
+        }
+
+        package = build_package(data, "Engineer A", "engineer.a@example.com", previewed=True)
+
+        self.assertEqual(package["items"][0]["service_hint"], "Cloudflare")
+
 
 if __name__ == "__main__":
     unittest.main()

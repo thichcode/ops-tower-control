@@ -7,10 +7,10 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
+from app.services.intake_rules import resolve_service_alias
 from app.services.member_intake import redact_text
 
 
-KNOWN_SERVICES = ["Kubernetes", "Cloudflare", "Backup", "Zabbix", "ServiceDesk", "GitLab", "SharePoint", "VPN", "SVN"]
 STATUS_TAGS = {
     "[DONE]": "Done",
     "[XONG]": "Done",
@@ -168,11 +168,8 @@ def _first_line(value: str) -> str:
 
 
 def _detect_service(value: str) -> str | None:
-    lower = value.lower()
-    for service in KNOWN_SERVICES:
-        if service.lower() in lower:
-            return service
-    return None
+    service_name, _confidence, ambiguous = resolve_service_alias(value)
+    return service_name if not ambiguous else None
 
 
 def _detect_status(value: str) -> str:
