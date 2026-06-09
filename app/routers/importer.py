@@ -9,6 +9,7 @@ import os
 
 from app.database import get_db
 from app.models import User, Service, WorkItem
+from app.services.member_intake import import_member_package
 from app.templates import TemplateResponse
 
 router = APIRouter(prefix="/import", tags=["import"])
@@ -201,6 +202,15 @@ async def import_upload(
         })
 
     tasks = parse_file(data)
+    if data.get("schema_version") and isinstance(data.get("items"), list):
+        result = import_member_package(db, data)
+        result["filename"] = file.filename
+        result["error"] = None
+        return TemplateResponse("import.html", {
+            "request": request,
+            "result": result,
+        })
+
     if not tasks:
         return TemplateResponse("import.html", {
             "request": request,
