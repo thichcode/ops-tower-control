@@ -76,10 +76,22 @@ def create_or_refresh_review(db: Session, item: WorkItem, use_ai: bool = True) -
     return review
 
 
+def _redact_name(value: str | None) -> str | None:
+    return "[REDACTED]" if value else value
+
+
+def _redact_text(value: str | None) -> str | None:
+    if not value:
+        return value
+    from app.services.member_intake import redact_text
+    return redact_text(value)
+
+
 def build_evidence(db: Session, item: WorkItem) -> dict[str, Any]:
     conversation = db.query(WorkItemEvidence).filter(
         WorkItemEvidence.work_item_id == item.id,
     ).order_by(WorkItemEvidence.created_at.asc()).all()
+    thread_id = next((e.thread_id for e in conversation if e.thread_id), None)
     return {
         "work_item": {
             "id": item.id,
@@ -90,15 +102,19 @@ def build_evidence(db: Session, item: WorkItem) -> dict[str, Any]:
             "current_service": item.service.name if item.service else None,
             "current_assignee": item.assignee.display_name if item.assignee else None,
             "source": item.source,
-            "requester": item.requester_name,
+            "requester": _redact_name(item.requester_name),
+        },
+        "conversation": {
+            "thread_id": thread_id,
+            "message_count": len(conversation),
         },
         "allowed_statuses": sorted(VALID_STATUSES),
         "allowed_services": [service.name for service in db.query(Service).filter(Service.status == "active").all()],
         "allowed_assignees": [user.display_name for user in db.query(User).filter(User.is_active == True).all()],
         "conversation_evidence": [
             {
-                "sender": evidence.sender_name,
-                "body": evidence.body_excerpt,
+                "sender": _redact_name(evidence.sender_name),
+                "body": _redact_text(evidence.body_excerpt),
                 "event_type": evidence.event_type,
                 "created_at": evidence.created_at.isoformat() if evidence.created_at else None,
             }
@@ -192,6 +208,7 @@ def apply_review(
     status: str,
     service_id: int | None,
     assignee_id: int | None,
+    reviewer_id: int | None = None,
 ) -> None:
     item = review.work_item
     item.status = status if status in VALID_STATUSES else item.status
@@ -202,6 +219,18 @@ def apply_review(
     elif item.status != "Done":
         item.completed_at = None
     review.state = "approved"
+    review.reviewer_id = reviewer_id
+    review.reviewed_at = datetime.now(timezone.utc)
+    db.commit()
+
+
+def reject_review(
+    db: Session,
+    review: AIReview,
+    reviewer_id: int | None = None,
+) -> None:
+    review.state = "rejected"
+    review.reviewer_id = reviewer_id
     review.reviewed_at = datetime.now(timezone.utc)
     db.commit()
 

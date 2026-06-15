@@ -65,6 +65,7 @@ class AIReview(Base):
     evidence = Column(JSON, nullable=False)
     suggestion = Column(JSON, nullable=True)
     error = Column(Text, nullable=True)
+    reviewer_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     reviewed_at = Column(DateTime, nullable=True)
 

@@ -6,7 +6,13 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
 from app.models import AIReview, Service, User, WorkItem, WorkItemEvidence
-from app.services.ai_review import apply_review, create_or_refresh_review, validate_suggestion
+from app.services.ai_review import (
+    apply_review,
+    build_evidence,
+    create_or_refresh_review,
+    reject_review,
+    validate_suggestion,
+)
 
 
 class AIReviewTest(unittest.TestCase):
@@ -79,6 +85,66 @@ class AIReviewTest(unittest.TestCase):
         self.assertEqual(self.item.status, "Done")
         self.assertIsNotNone(self.item.completed_at)
         self.assertEqual(review.state, "approved")
+
+
+    def test_build_evidence_redacts_requester_name(self):
+        self.item.requester_name = "Alice Smith"
+        self.db.commit()
+
+        evidence = build_evidence(self.db, self.item)
+
+        self.assertEqual(evidence["work_item"]["requester"], "[REDACTED]")
+
+    def test_build_evidence_redacts_sender_name(self):
+        self.db.add(WorkItemEvidence(
+            work_item_id=self.item.id,
+            source="Teams",
+            sender_name="Bob Jones",
+            body_excerpt="Please help with this issue.",
+        ))
+        self.db.commit()
+
+        evidence = build_evidence(self.db, self.item)
+
+        self.assertEqual(evidence["conversation_evidence"][0]["sender"], "[REDACTED]")
+
+    def test_build_evidence_redacts_secrets_from_body_excerpt(self):
+        self.db.add(WorkItemEvidence(
+            work_item_id=self.item.id,
+            source="Teams",
+            sender_name="Bob Jones",
+            body_excerpt="My api_key=abc123 is secret, but context remains",
+        ))
+        self.db.commit()
+
+        evidence = build_evidence(self.db, self.item)
+
+        self.assertNotIn("abc123", evidence["conversation_evidence"][0]["body"])
+        self.assertNotIn("api_key", evidence["conversation_evidence"][0]["body"])
+        self.assertIn("[REDACTED]", evidence["conversation_evidence"][0]["body"])
+        self.assertIn("context remains", evidence["conversation_evidence"][0]["body"])
+
+    def test_apply_review_records_reviewer_id(self):
+        reviewer = User(display_name="Reviewer", email="reviewer@example.com")
+        self.db.add(reviewer)
+        self.db.commit()
+        review = create_or_refresh_review(self.db, self.item, use_ai=False)
+
+        apply_review(self.db, review, "Done", self.service.id, self.user.id, reviewer_id=reviewer.id)
+
+        self.assertEqual(review.reviewer_id, reviewer.id)
+        self.assertEqual(review.state, "approved")
+
+    def test_reject_review_records_reviewer_id(self):
+        reviewer = User(display_name="Reviewer", email="reviewer@example.com")
+        self.db.add(reviewer)
+        self.db.commit()
+        review = create_or_refresh_review(self.db, self.item, use_ai=False)
+
+        reject_review(self.db, review, reviewer_id=reviewer.id)
+
+        self.assertEqual(review.reviewer_id, reviewer.id)
+        self.assertEqual(review.state, "rejected")
 
 
 if __name__ == "__main__":

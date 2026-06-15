@@ -1,15 +1,14 @@
-from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-from app.auth import role_required
+from app.auth import get_current_user, role_required
 from app.config import AI_REVIEW_ENABLED, AI_REVIEW_MODEL, OPENAI_API_KEY
 from app.database import get_db
 from app.models import AIReview, Service, User, WorkItem
-from app.services.ai_review import apply_review, create_or_refresh_review
+from app.services.ai_review import apply_review, create_or_refresh_review, reject_review as ai_reject_review
 from app.templates import TemplateResponse
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
@@ -46,19 +45,23 @@ def approve_review(
     service_id: Optional[int] = Form(None),
     assignee_id: Optional[int] = Form(None),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(role_required("leader", "admin")),
 ):
     review = db.query(AIReview).filter(AIReview.id == review_id).first()
     if review and review.state == "pending":
-        apply_review(db, review, status, service_id, assignee_id)
+        apply_review(db, review, status, service_id, assignee_id, reviewer_id=current_user.id)
     return RedirectResponse(url="/reviews", status_code=303)
 
 
 @router.post("/{review_id}/reject")
-def reject_review(review_id: int, db: Session = Depends(get_db), _=Depends(role_required("leader", "admin"))):
+def reject_review_route(
+    review_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _=Depends(role_required("leader", "admin")),
+):
     review = db.query(AIReview).filter(AIReview.id == review_id).first()
     if review and review.state == "pending":
-        review.state = "rejected"
-        review.reviewed_at = datetime.now(timezone.utc)
-        db.commit()
+        ai_reject_review(db, review, reviewer_id=current_user.id)
     return RedirectResponse(url="/reviews", status_code=303)
