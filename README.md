@@ -130,7 +130,7 @@ Team members collect their own Teams messages, summarize into tasks, save as JSO
 cp .env.example .env
 # Edit .env to set TEAMS_DIGEST_WEBHOOK and TEAMS_ALERT_WEBHOOK if needed
 docker compose up -d
-# Web: http://localhost:8000
+# Web: http://localhost:8080
 ```
 
 Includes `web` (FastAPI) + `db` (PostgreSQL 16) services with healthchecks and persistent volumes.
@@ -138,13 +138,13 @@ Includes `web` (FastAPI) + `db` (PostgreSQL 16) services with healthchecks and p
 ### Dev (SQLite, no DB service)
 ```bash
 docker compose --profile dev up -d web-dev
-# Web: http://localhost:8000
+# Web: http://localhost:8080
 ```
 
 ### With Adminer (DB UI)
 ```bash
 docker compose --profile tools up -d
-# Adminer: http://localhost:8080 (login: opsdash / opsdash / db)
+# Adminer: http://localhost:8081 (login: opsdash / opsdash / db)
 ```
 
 ### Stop & cleanup
@@ -225,10 +225,10 @@ pip install -r requirements.txt
 python seed.py
 
 # Run
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
 ```
 
-Open **http://localhost:8000** in your browser.
+Open **http://localhost:8080** in your browser.
 
 ### Configuration
 
@@ -236,7 +236,7 @@ Set environment variables for production:
 
 ```bash
 # PostgreSQL (defaults to SQLite for dev)
-export DATABASE_URL="postgresql://user:pass@localhost:5432/opsdash"
+export DATABASE_URL="postgresql://user:pass@localhost:15432/opsdash"
 
 # SDP integration
 export SDP_API_URL="https://your-sdp/api/v3"
@@ -258,7 +258,7 @@ export ZABBIX_API_TOKEN="your-token"
 
 ```bash
 # Test the Teams intake API
-curl -X POST http://localhost:8000/api/intake/teams \
+curl -X POST http://localhost:8080/api/intake/teams \
   -H "Content-Type: application/json" \
   -d '{
     "command": "/task 4h",

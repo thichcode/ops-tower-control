@@ -1,140 +1,76 @@
 {% extends "base.html" %}
-{% block title %}Executive Summary{% endblock %}
+{% block title %}Executive Brief | Ops Control Tower{% endblock %}
+{% block context %}Executive Brief{% endblock %}
+{% block head %}
+<style>
+  .brief-hero { padding: 25px 27px; border-radius: 16px; color: white; background: linear-gradient(125deg,#14213d 0%,#20375f 58%,#155e75 100%); box-shadow: 0 18px 45px rgba(20,33,61,.16); }
+  .brief-status { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:30px; background:rgba(255,255,255,.13); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+  .brief-status-dot { width:8px; height:8px; border-radius:50%; background:{{ '#f87171' if operating_tone == 'bad' else '#fbbf24' if operating_tone == 'warn' else '#34d399' }}; }
+  .hero-number { font:800 38px Manrope; letter-spacing:-.06em; line-height:1; }
+  .hero-label { margin-top:8px; color:#cbd5e1; font-size:10px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; }
+  .hero-stat { padding-left:20px; border-left:1px solid rgba(255,255,255,.16); }
+  .section-label { margin:28px 0 12px; color:#475569; font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+  .attention-card { height:100%; padding:18px; border:1px solid var(--line); border-radius:13px; background:#fff; }
+  .attention-card.bad { border-top:3px solid var(--bad); } .attention-card.warn { border-top:3px solid var(--warn); } .attention-card.good { border-top:3px solid var(--good); }
+  .attention-kicker { color:var(--muted); font-size:10px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; }
+  .attention-number { margin:7px 0 2px; font:800 24px Manrope; }
+  .item-row { padding:11px 0; border-bottom:1px solid #edf2f7; } .item-row:last-child { border:0; }
+  .item-title { color:var(--ink); font-size:12px; font-weight:700; text-decoration:none; }
+  .item-meta { color:var(--muted); font-size:10px; margin-top:3px; }
+  .decision-card { background:#fff; border:1px solid var(--line); border-radius:13px; overflow:hidden; }
+  .decision-row { display:grid; grid-template-columns:34px 1fr auto; gap:12px; align-items:start; padding:15px 18px; border-bottom:1px solid #edf2f7; }
+  .decision-row:last-child { border:0; } .decision-index { display:grid; place-items:center; width:27px; height:27px; border-radius:8px; background:#eff6ff; color:#1d4ed8; font-size:11px; font-weight:800; }
+  .decision-title { font-size:12px; font-weight:800; } .decision-detail { color:var(--muted); font-size:11px; margin-top:3px; }
+</style>
+{% endblock %}
 {% block content %}
-
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2>📊 Executive Summary</h2>
-  <span class="text-muted">{{ current_month }} · 1-click situational view</span>
+<div class="page-header">
+  <div><div class="eyebrow">Leadership view / {{ current_month }}</div><h1 class="page-title">Executive Operations Brief</h1><p class="page-subtitle">A decision-focused view of delivery health, capacity pressure, service risk and team performance.</p></div>
+  <div class="no-print d-flex gap-2"><button class="btn btn-outline-secondary" onclick="window.print()">Print brief</button><a class="btn btn-primary" href="/performance/proposal">Leadership proposal</a></div>
 </div>
 
+<section class="brief-hero">
+  <div class="d-flex justify-content-between align-items-start mb-4">
+    <div><div class="brief-status"><span class="brief-status-dot"></span>{{ operating_status }}</div><h2 class="mt-3 mb-1">Operations require {{ 'leadership attention' if operating_tone != 'good' else 'no immediate escalation' }}.</h2><p class="mb-0 text-white-50 small">{{ attention_count }} attention signals across delivery, people and service risk.</p></div>
+    <div class="text-end d-none d-md-block"><div class="hero-label">Reporting period</div><strong>{{ current_month }}</strong></div>
+  </div>
+  <div class="row g-4">
+    <div class="col-6 col-lg-3 hero-stat"><div class="hero-number">{{ active_items }}</div><div class="hero-label">Active portfolio</div></div>
+    <div class="col-6 col-lg-3 hero-stat"><div class="hero-number">{{ done_this_month }}</div><div class="hero-label">Delivered this month</div></div>
+    <div class="col-6 col-lg-3 hero-stat"><div class="hero-number">{{ "%.0f" % utilization_pct }}%</div><div class="hero-label">Team utilization</div></div>
+    <div class="col-6 col-lg-3 hero-stat"><div class="hero-number">{{ active_members }}</div><div class="hero-label">Active team members</div></div>
+  </div>
+</section>
+
+<div class="section-label">Management attention</div>
 <div class="row g-3">
-
-  <!-- Card 1: Retention High Risk -->
-  <div class="col-md-3">
-    <div class="card border-danger h-100">
-      <div class="card-header bg-danger text-white d-flex justify-content-between">
-        <strong>🧠 Retention Risk</strong>
-        <span class="badge bg-light text-dark">{{ retention_data|length }}</span>
-      </div>
-      <div class="card-body p-0">
-        {% if retention_data %}
-          <ul class="list-group list-group-flush">
-            {% for r in retention_data %}
-            {% set badge = 'danger' if r.risk_level == 'High' else 'warning' %}
-            <li class="list-group-item small">
-              <div class="d-flex justify-content-between align-items-start">
-                <a href="/retention/{{ r.user.id }}/detail" class="text-decoration-none fw-bold">{{ r.user.display_name }}</a>
-                <span class="badge bg-{{ badge }}">{{ r.risk_level }}</span>
-              </div>
-              {% for sig in r.flagged_signals %}
-              <div class="text-muted">• {{ sig }}</div>
-              {% endfor %}
-            </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <div class="p-3 text-center text-muted small">✅ No high-risk members</div>
-        {% endif %}
-      </div>
-      <div class="card-footer text-center">
-        <a href="/retention" class="btn btn-outline-danger btn-sm">View All →</a>
-      </div>
-    </div>
-  </div>
-
-  <!-- Card 2: Scorecard Top/Bottom 3 -->
-  <div class="col-md-3">
-    <div class="card border-warning h-100">
-      <div class="card-header bg-warning text-dark">
-        <strong>🏆 Scorecard</strong>
-      </div>
-      <div class="card-body p-0">
-        {% if scorecard_top %}
-        <div class="px-3 py-2 bg-light small fw-bold">⬆ Top 3</div>
-        <ul class="list-group list-group-flush">
-          {% for r in scorecard_top %}
-          {% set medal = '🥇' if r.overall_rank == 1 else '🥈' if r.overall_rank == 2 else '🥉' %}
-          <li class="list-group-item small">
-            <a href="/users/{{ r.user.id }}" class="text-decoration-none fw-bold">{{ medal }} {{ r.user.display_name }}</a>
-            <span class="float-end text-muted">#{{ r.overall_rank }} ({{ r.overall_score }})</span>
-          </li>
-          {% endfor %}
-        </ul>
-        {% if scorecard_bottom and scorecard_bottom|length > 0 and scorecard_bottom[0].user.id != scorecard_top[-1].user.id %}
-        <div class="px-3 py-2 bg-light small fw-bold border-top">⬇ Bottom 3</div>
-        <ul class="list-group list-group-flush">
-          {% for r in scorecard_bottom %}
-          <li class="list-group-item small">
-            <a href="/users/{{ r.user.id }}" class="text-decoration-none">{{ r.user.display_name }}</a>
-            <span class="float-end text-muted">#{{ r.overall_rank }} ({{ r.overall_score }})</span>
-          </li>
-          {% endfor %}
-        </ul>
-        {% endif %}
-        {% else %}
-          <div class="p-3 text-center text-muted small">No scorecard data</div>
-        {% endif %}
-      </div>
-      <div class="card-footer text-center">
-        <a href="/performance" class="btn btn-outline-warning btn-sm">View All →</a>
-      </div>
-    </div>
-  </div>
-
-  <!-- Card 3: SLA Breach -->
-  <div class="col-md-3">
-    <div class="card border-warning h-100">
-      <div class="card-header bg-warning text-dark d-flex justify-content-between">
-        <strong>⚠️ SLA Breach</strong>
-        <span class="badge bg-dark">{{ sla_count }} ({{ sla_rate }}%)</span>
-      </div>
-      <div class="card-body p-0">
-        {% if sla_items %}
-          <ul class="list-group list-group-flush">
-            {% for i in sla_items %}
-            <li class="list-group-item small">
-              <a href="/dashboard/triage" class="text-decoration-none">#{{ i.id }} {{ i.title[:35] }}{% if i.title|length > 35 %}…{% endif %}</a>
-              <div class="text-muted">👤 {{ i.assignee }} · {{ i.days_open }}d · {{ i.service }}</div>
-            </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <div class="p-3 text-center text-muted small">✅ No SLA breaches</div>
-        {% endif %}
-      </div>
-      <div class="card-footer text-center">
-        <a href="/dashboard/triage" class="btn btn-outline-warning btn-sm">View Triage →</a>
-      </div>
-    </div>
-  </div>
-
-  <!-- Card 4: Stale Critical -->
-  <div class="col-md-3">
-    <div class="card border-dark h-100">
-      <div class="card-header bg-dark text-white d-flex justify-content-between">
-        <strong>🔴 Stale Critical</strong>
-        <span class="badge bg-light text-dark">{{ stale_items|length }}</span>
-      </div>
-      <div class="card-body p-0">
-        {% if stale_items %}
-          <ul class="list-group list-group-flush">
-            {% for i in stale_items %}
-            <li class="list-group-item small">
-              <a href="/dashboard/triage" class="text-decoration-none">#{{ i.id }} {{ i.title[:35] }}{% if i.title|length > 35 %}…{% endif %}</a>
-              <div class="text-muted">👤 {{ i.assignee }} · <span class="text-danger fw-bold">{{ i.days_open }}d</span> · {{ i.service }}</div>
-            </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <div class="p-3 text-center text-muted small">✅ No stale critical items</div>
-        {% endif %}
-      </div>
-      <div class="card-footer text-center">
-        <a href="/dashboard/triage" class="btn btn-outline-dark btn-sm">View Triage →</a>
-      </div>
-    </div>
-  </div>
-
+  <div class="col-md-6 col-xl-3"><div class="attention-card {{ 'bad' if sla_rate >= 20 else 'warn' if sla_count else 'good' }}"><div class="attention-kicker">Delivery governance</div><div class="attention-number">{{ sla_count }}</div><div class="small fw-bold">Items open over 30 days</div><div class="metric-note mt-1">{{ sla_rate }}% of active portfolio</div></div></div>
+  <div class="col-md-6 col-xl-3"><div class="attention-card {{ 'bad' if not capacity_planned and demand_hours > 0 or utilization_pct > 100 else 'warn' if utilization_pct >= 85 else 'good' }}"><div class="attention-kicker">Capacity position</div><div class="attention-number">{{ "%.0f" % utilization_pct }}%{% if not capacity_planned %}*{% endif %}</div><div class="small fw-bold">{{ "%.1f" % demand_hours }}h demand / {{ "%.1f" % net_capacity }}h capacity</div><div class="metric-note mt-1">{{ 'Capacity plan missing' if not capacity_planned else 'Reprioritization required' if utilization_pct > 100 else 'Monitor allocation' if utilization_pct >= 85 else 'Within planned capacity' }}</div></div></div>
+  <div class="col-md-6 col-xl-3"><div class="attention-card {{ 'bad' if blocked_items >= 5 else 'warn' if blocked_items else 'good' }}"><div class="attention-kicker">Execution blockers</div><div class="attention-number">{{ blocked_items }}</div><div class="small fw-bold">Blocked work items</div><div class="metric-note mt-1">{{ 'Escalate dependencies' if blocked_items else 'No active blockers' }}</div></div></div>
+  <div class="col-md-6 col-xl-3"><div class="attention-card {{ 'bad' if retention_data|length >= 3 else 'warn' if retention_data else 'good' }}"><div class="attention-kicker">People sustainability</div><div class="attention-number">{{ retention_data|length }}</div><div class="small fw-bold">Members with risk signals</div><div class="metric-note mt-1">{{ 'Manager intervention recommended' if retention_data else 'No elevated signals' }}</div></div></div>
 </div>
 
+<div class="row g-4 mt-1">
+  <div class="col-xl-7">
+    <div class="section-label">Recommended leadership actions</div>
+    <div class="decision-card">
+      {% if not capacity_planned and demand_hours > 0 %}<div class="decision-row"><div class="decision-index">01</div><div><div class="decision-title">Establish a capacity baseline</div><div class="decision-detail">Demand is recorded but no net capacity plan exists for {{ current_month }}. Confirm team availability before committing delivery dates.</div></div><a href="/capacity" class="btn btn-sm btn-outline-secondary">Plan capacity</a></div>{% elif utilization_pct > 100 %}<div class="decision-row"><div class="decision-index">01</div><div><div class="decision-title">Approve portfolio reprioritization</div><div class="decision-detail">Demand exceeds net capacity by {{ "%.1f" % (demand_hours-net_capacity) }} hours. Defer lower-value work or secure additional capacity.</div></div><span class="status-pill status-bad">Decision</span></div>{% endif %}
+      {% if sla_count %}<div class="decision-row"><div class="decision-index">02</div><div><div class="decision-title">Review aged delivery commitments</div><div class="decision-detail">{{ sla_count }} items are over 30 days. Confirm ownership, revised dates and escalation paths.</div></div><a href="/dashboard/triage" class="btn btn-sm btn-outline-secondary">Review</a></div>{% endif %}
+      {% if retention_data %}<div class="decision-row"><div class="decision-index">03</div><div><div class="decision-title">Initiate manager check-ins</div><div class="decision-detail">{{ retention_data|length }} members show elevated sustainability signals. Validate workload and support needs.</div></div><a href="/retention" class="btn btn-sm btn-outline-secondary">Review</a></div>{% endif %}
+      {% if not sla_count and not retention_data and utilization_pct <= 100 %}<div class="decision-row"><div class="decision-index">01</div><div><div class="decision-title">Maintain current operating plan</div><div class="decision-detail">No immediate escalation is required. Continue weekly monitoring of commitments and capacity.</div></div><span class="status-pill status-good">On track</span></div>{% endif %}
+    </div>
+  </div>
+  <div class="col-xl-5">
+    <div class="section-label">Recognition & support</div>
+    <div class="card h-100"><div class="card-body p-0">
+      {% for r in scorecard_top %}<div class="item-row px-3"><div class="d-flex justify-content-between"><a class="item-title" href="/users/{{ r.user.id }}">#{{ r.overall_rank }} {{ r.user.display_name }}</a><span class="status-pill status-good">Recognize</span></div><div class="item-meta">Overall score {{ r.overall_score }} · Q{{ ((current_month[5:7]|int - 1) // 3) + 1 }} performance</div></div>{% endfor %}
+      {% if scorecard_bottom %}<div class="px-3 py-2 bg-light attention-kicker">Support focus</div>{% for r in scorecard_bottom[:2] %}<div class="item-row px-3"><div class="d-flex justify-content-between"><a class="item-title" href="/users/{{ r.user.id }}">{{ r.user.display_name }}</a><span class="status-pill status-warn">Coach</span></div></div>{% endfor %}{% endif %}
+    </div></div>
+  </div>
+</div>
+
+<div class="row g-4 mt-1">
+  <div class="col-lg-6"><div class="section-label">Oldest commitments</div><div class="card"><div class="card-body p-0">{% for i in sla_items %}<div class="item-row px-3"><div class="d-flex justify-content-between gap-3"><a class="item-title text-truncate" href="/work-items/{{ i.id }}/edit">{{ i.title }}</a><span class="status-pill status-bad">{{ i.days_open }} days</span></div><div class="item-meta">{{ i.service }} · {{ i.assignee }}</div></div>{% else %}<div class="p-4 text-center text-muted small">No aged commitments.</div>{% endfor %}</div></div></div>
+  <div class="col-lg-6"><div class="section-label">Critical service exposure</div><div class="card"><div class="card-body p-0">{% for i in stale_items %}<div class="item-row px-3"><div class="d-flex justify-content-between gap-3"><a class="item-title text-truncate" href="/work-items/{{ i.id }}/edit">{{ i.title }}</a><span class="status-pill status-warn">{{ i.days_open }} days</span></div><div class="item-meta">{{ i.service }} · {{ i.assignee }}</div></div>{% else %}<div class="p-4 text-center text-muted small">No active exposure in critical services.</div>{% endfor %}</div></div></div>
+</div>
 {% endblock %}

@@ -1,86 +1,21 @@
 {% extends "base.html" %}
-{% block title %}KPI Metrics{% endblock %}
+{% block title %}Operating KPIs | Ops Control Tower{% endblock %}
+{% block context %}Operating KPIs{% endblock %}
 {% block content %}
-
-<h2 class="mb-3">KPI Metrics</h2>
-
+<div class="page-header"><div><div class="eyebrow">Operating performance</div><h1 class="page-title">Operating KPIs</h1><p class="page-subtitle">Delivery speed, portfolio health and execution flow.</p></div></div>
 <div class="row g-3 mb-4">
-  <div class="col-md-3">
-    <div class="card text-center border-info">
-      <div class="card-body">
-        <h6 class="text-muted">Avg Cycle Time</h6>
-        <h3 class="text-info">{{ cycle_time }}d</h3>
-        <small>Created → Done</small>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card text-center border-primary">
-      <div class="card-body">
-        <h6 class="text-muted">Active Items</h6>
-        <h3 class="text-primary">{{ total_active }}</h3>
-        <small>Open + Blocked</small>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card text-center border-danger">
-      <div class="card-body">
-        <h6 class="text-muted">SLA Breach</h6>
-        <h3 class="text-danger">{{ sla_breach_rate }}%</h3>
-        <small>{{ sla_breach }} items > 30 days</small>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card text-center border-success">
-      <div class="card-body">
-        <h6 class="text-muted">Total Throughput</h6>
-        <h3 class="text-success">{{ throughput|sum(attribute='done') }}</h3>
-        <small>Done (last 8 weeks)</small>
-      </div>
-    </div>
-  </div>
+  <div class="col-md-6 col-xl-3"><div class="metric-card"><div class="metric-label">Average cycle time</div><div class="metric-value">{{ cycle_time }}d</div><div class="metric-note">From commitment created to delivered</div></div></div>
+  <div class="col-md-6 col-xl-3"><div class="metric-card"><div class="metric-label">Active portfolio</div><div class="metric-value">{{ total_active }}</div><div class="metric-note">Open and blocked commitments</div></div></div>
+  <div class="col-md-6 col-xl-3"><div class="metric-card"><div class="metric-label">SLA exposure</div><div class="metric-value {{ 'text-danger' if sla_breach_rate >= 20 else 'text-warning' if sla_breach }}">{{ sla_breach_rate }}%</div><div class="metric-note">{{ sla_breach }} active items over 7 days</div></div></div>
+  <div class="col-md-6 col-xl-3"><div class="metric-card"><div class="metric-label">Eight-week throughput</div><div class="metric-value">{{ throughput|sum(attribute='done') }}</div><div class="metric-note">Completed work items</div></div></div>
 </div>
-
-<div class="row g-3">
-  <div class="col-md-8">
-    <div class="card">
-      <div class="card-header">Weekly Throughput (Items Done)</div>
-      <div class="card-body">
-        <canvas id="throughputChart" height="120"></canvas>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-4">
-    <div class="card">
-      <div class="card-header">WIP by Member</div>
-      <div class="card-body">
-        <canvas id="wipChart" height="200"></canvas>
-      </div>
-    </div>
-  </div>
-</div>
-
+<div class="row g-4"><div class="col-xl-8"><div class="card"><div class="card-header">Weekly delivery throughput</div><div class="card-body"><canvas id="throughputChart" height="115"></canvas></div></div></div><div class="col-xl-4"><div class="card"><div class="card-header">Work in progress by member</div><div class="card-body"><canvas id="wipChart" height="240"></canvas></div></div></div></div>
+{% endblock %}
+{% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
-new Chart(document.getElementById('throughputChart'), {
-  type: 'bar',
-  data: {
-    labels: [{% for w in throughput %}'{{ w.week }}',{% endfor %}],
-    datasets: [{ label: 'Items Done', data: [{% for w in throughput %}{{ w.done }},{% endfor %}], backgroundColor: 'rgba(25,135,84,0.6)' }]
-  },
-  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-});
-
-new Chart(document.getElementById('wipChart'), {
-  type: 'bar',
-  data: {
-    labels: [{% for m in wip_members %}'{{ m.name }}',{% endfor %}],
-    datasets: [{ label: 'Open Items', data: [{% for m in wip_members %}{{ m.wip }},{% endfor %}], backgroundColor: 'rgba(13,110,253,0.6)' }]
-  },
-  options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-});
+Chart.defaults.font.family="'DM Sans',sans-serif";Chart.defaults.color="#64748b";
+new Chart(document.getElementById('throughputChart'),{type:'bar',data:{labels:[{% for w in throughput %}'{{ w.week }}',{% endfor %}],datasets:[{data:[{% for w in throughput %}{{ w.done }},{% endfor %}],backgroundColor:'#2563eb',borderRadius:5}]},options:{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,ticks:{stepSize:1},grid:{color:'#edf2f7'}}}}});
+new Chart(document.getElementById('wipChart'),{type:'bar',data:{labels:[{% for m in wip_members %}'{{ m.name }}',{% endfor %}],datasets:[{data:[{% for m in wip_members %}{{ m.wip }},{% endfor %}],backgroundColor:'#14b8a6',borderRadius:5}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{y:{grid:{display:false}},x:{beginAtZero:true,ticks:{stepSize:1},grid:{color:'#edf2f7'}}}}});
 </script>
-
 {% endblock %}

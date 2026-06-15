@@ -1,100 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Demand vs Capacity{% endblock %}
+{% block title %}Demand & Capacity | Ops Control Tower{% endblock %}
+{% block context %}Demand & Capacity{% endblock %}
 {% block content %}
-
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2>Demand vs Capacity</h2>
-  <div>
-    <a href="/dashboard/export/demand-vs-capacity?month={{ month }}" class="btn btn-outline-success btn-sm">CSV</a>
-  </div>
+<div class="page-header">
+  <div><div class="eyebrow">Resource planning / {{ month }}</div><h1 class="page-title">Demand & Capacity</h1><p class="page-subtitle">Assess delivery pressure, allocation risk and available headroom.</p></div>
+  <div class="no-print d-flex gap-2"><form method="GET"><input type="month" name="month" class="form-control" value="{{ month }}" onchange="this.form.submit()"></form><a href="/dashboard/export/demand-vs-capacity?month={{ month }}" class="btn btn-outline-secondary">Export CSV</a></div>
 </div>
-
-<form method="GET" class="row g-2 mb-3">
-  <div class="col-auto">
-    <input type="month" name="month" class="form-control" value="{{ month }}" onchange="this.form.submit()">
-  </div>
-</form>
-
 <div class="row g-3 mb-4">
-  <div class="col-md-3">
-    <div class="card text-center border-primary">
-      <div class="card-body">
-        <h6 class="card-title text-muted">Total Capacity</h6>
-        <h3 class="text-primary">{{ "%.1f" % net_capacity }}h</h3>
-        <small class="text-muted">Gross: {{ "%.1f" % total_capacity }}h | Leave: {{ "%.1f" % total_leave }}h | Meetings: {{ "%.1f" % total_meeting }}h</small>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card text-center border-info">
-      <div class="card-body">
-        <h6 class="card-title text-muted">Total Demand</h6>
-        <h3 class="text-info">{{ "%.1f" % total_estimated }}h</h3>
-        <small class="text-muted">{{ items_count }} items</small>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card text-center {% if is_over %}border-danger{% else %}border-success{% endif %}">
-      <div class="card-body">
-        <h6 class="card-title text-muted">Gap</h6>
-        <h3 class="{% if is_over %}text-danger{% else %}text-success{% endif %}">
-          {% if is_over %}-{% endif %}{{ "%.1f" % gap }}h
-        </h3>
-        <small>{{ "Excess demand" if is_over else "Headroom" }}: {{ gap_pct }}%</small>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card text-center border-warning">
-      <div class="card-body">
-        <h6 class="card-title text-muted">Utilization</h6>
-        <h3 class="text-warning">{{ "%.1f" % (total_estimated / net_capacity * 100) if net_capacity > 0 else '-' }}%</h3>
-        <small>{{ "OVER" if is_over else "Under" }} capacity</small>
-      </div>
-    </div>
-  </div>
+  <div class="col-md-6 col-xl-3"><div class="metric-card"><div class="metric-label">Net capacity</div><div class="metric-value">{{ "%.1f" % net_capacity }}h</div><div class="metric-note">{{ "%.1f" % total_capacity }}h gross less leave and meetings</div></div></div>
+  <div class="col-md-6 col-xl-3"><div class="metric-card"><div class="metric-label">Planned demand</div><div class="metric-value">{{ "%.1f" % total_estimated }}h</div><div class="metric-note">{{ items_count }} portfolio commitments</div></div></div>
+  <div class="col-md-6 col-xl-3"><div class="metric-card"><div class="metric-label">Capacity position</div><div class="metric-value {{ 'text-danger' if is_over else 'text-success' }}">{{ '-' if is_over }}{{ "%.1f" % gap }}h</div><div class="metric-note">{{ 'Excess demand requiring action' if is_over else 'Available delivery headroom' }}</div></div></div>
+  <div class="col-md-6 col-xl-3"><div class="metric-card"><div class="metric-label">Utilization</div><div class="metric-value {{ 'text-danger' if is_over else 'text-warning' if net_capacity > 0 and total_estimated/net_capacity > 0.85 }}">{{ "%.1f" % (total_estimated/net_capacity*100) if net_capacity > 0 else 'N/A' }}{{ '%' if net_capacity > 0 }}</div><div class="metric-note">{{ 'Capacity plan required' if net_capacity <= 0 else 'Above sustainable plan' if is_over else 'Within planned capacity' }}</div></div></div>
 </div>
-
-{% if is_over %}
-<div class="alert alert-danger" role="alert">
-  <strong>Demand exceeds capacity by {{ gap_pct }}%!</strong>
-  Estimated demand ({{ "%.1f" % total_estimated }}h) exceeds available capacity ({{ "%.1f" % net_capacity }}h) by {{ "%.1f" % gap }} hours.
-</div>
-{% endif %}
-
-<h5 class="mb-3">Member Breakdown</h5>
-<div class="table-responsive">
-  <table class="table table-hover align-middle">
-    <thead class="table-dark">
-      <tr>
-        <th>Member</th>
-        <th class="text-center">Items</th>
-        <th class="text-end">Est. Hours</th>
-        <th class="text-end">Actual Hours</th>
-        <th class="text-end">Net Capacity</th>
-        <th class="text-end">Utilization</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for m in members %}
-      <tr class="{{ 'table-danger' if m.utilization_pct > 100 else 'table-warning' if m.utilization_pct > 80 }}">
-        <td>{{ m.name }}</td>
-        <td class="text-center">{{ m.count }}</td>
-        <td class="text-end">{{ "%.1f" % m.estimated }}</td>
-        <td class="text-end">{{ "%.1f" % m.actual }}</td>
-        <td class="text-end">{{ "%.1f" % m.capacity }}</td>
-        <td class="text-end">
-          <strong>{{ "%.1f" % m.utilization_pct }}%</strong>
-        </td>
-      </tr>
-      {% else %}
-      <tr><td colspan="6" class="text-center text-muted">No data for this month. Set capacity first.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-
-<p class="text-muted small">Red = utilization > 100% (overloaded). Yellow = > 80% (near capacity). Set member capacity in <a href="/capacity">Capacity Management</a>.</p>
-
+{% if is_over %}<div class="card mb-4" style="border-left:4px solid var(--bad)"><div class="card-body d-flex justify-content-between align-items-center"><div><strong>Leadership action required</strong><div class="metric-note mt-1">Demand exceeds available capacity by {{ "%.1f" % gap }} hours ({{ gap_pct }}%). Reprioritize commitments or approve additional capacity.</div></div><a href="/dashboard/triage" class="btn btn-outline-danger no-print">Review priorities</a></div></div>{% endif %}
+<div class="section-label">Allocation by team member</div>
+<div class="table-card"><table class="table table-hover"><thead><tr><th>Team member</th><th class="text-center">Items</th><th class="text-end">Demand</th><th class="text-end">Actual</th><th class="text-end">Capacity</th><th style="width:220px">Utilization</th><th>Position</th></tr></thead><tbody>
+{% for m in members %}<tr><td class="fw-bold">{{ m.name }}</td><td class="text-center">{{ m.count }}</td><td class="text-end">{{ "%.1f" % m.estimated }}h</td><td class="text-end">{{ "%.1f" % m.actual }}h</td><td class="text-end">{{ "%.1f" % m.capacity }}h</td><td><div class="d-flex align-items-center gap-2"><div class="progress flex-grow-1" style="height:6px"><div class="progress-bar {{ 'bg-danger' if m.utilization_pct > 100 else 'bg-warning' if m.utilization_pct > 80 else 'bg-success' }}" style="width:{{ 100 if m.utilization_pct > 100 else m.utilization_pct }}%"></div></div><strong class="small">{{ "%.0f" % m.utilization_pct }}%</strong></div></td><td><span class="status-pill {{ 'status-bad' if m.utilization_pct > 100 else 'status-warn' if m.utilization_pct > 80 else 'status-good' }}">{{ 'Overloaded' if m.utilization_pct > 100 else 'Watch' if m.utilization_pct > 80 else 'Healthy' }}</span></td></tr>{% else %}<tr><td colspan="7" class="text-center text-muted py-5">No capacity data for this month.</td></tr>{% endfor %}
+</tbody></table></div>
 {% endblock %}

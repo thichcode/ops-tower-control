@@ -163,6 +163,73 @@ def performance_dashboard(
         "available_periods": available,
         "metric_config": metric_config,
         "winners": winners,
+        "leaders": [result for result in results if result["values"]["evidence_count"] > 0][:3],
+    })
+
+
+@router.get("/proposal")
+def leadership_proposal(
+    request: Request,
+    period: str = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    from app.services.performance import METRIC_CONFIG
+
+    available = get_available_periods(db)
+    if not period:
+        period = available[-1].key() if available else "2026-Q1"
+    current_period = parse_period(period)
+    results = compute_performance(db, current_period)
+    period_start, period_end = current_period.date_range()
+    team_size = len(results)
+    team_productivity = sum(r["values"]["productivity"] for r in results)
+    team_avg_productivity = team_productivity / team_size if team_size else 0
+    team_avg_reliability = (
+        sum(r["values"]["reliability"] for r in results) / team_size * 100 if team_size else 0
+    )
+
+    proposals = []
+    for r in results:
+        ranked_metrics = sorted(METRIC_CONFIG.items(), key=lambda item: r["ranks"][item[0]])
+        strengths = [config["label"] for _, config in ranked_metrics[:2]]
+        if r["values"]["evidence_count"] == 0:
+            action = "Insufficient evidence"
+            tone = "neutral"
+            rationale = "No recorded work evidence is available for this period; defer performance conclusions."
+        elif r["overall_rank"] <= 3:
+            action = "Recognition proposal"
+            tone = "good"
+            rationale = "Consistently ranks among the strongest contributors across the selected period."
+        elif team_size >= 4 and r["overall_rank"] > team_size - 2:
+            action = "Development support"
+            tone = "warn"
+            rationale = "Would benefit from a focused coaching plan and clearer delivery support."
+        else:
+            action = "Maintain trajectory"
+            tone = "neutral"
+            rationale = "Performance is within the team operating range; continue current objectives."
+        evidence = get_crisis_resolver_tasks(db, r["user"].id, period_start, period_end, limit=1)
+        if not evidence:
+            evidence = get_most_improved_tasks(db, r["user"].id, period_start, period_end, limit=1)
+        proposals.append({
+            **r,
+            "strengths": strengths,
+            "action": action,
+            "tone": tone,
+            "rationale": rationale,
+            "evidence": evidence[0] if evidence else None,
+        })
+
+    return TemplateResponse("leadership_proposal.html", {
+        "request": request,
+        "current_period": current_period,
+        "available_periods": available,
+        "proposals": proposals,
+        "team_size": team_size,
+        "team_productivity": team_productivity,
+        "team_avg_productivity": team_avg_productivity,
+        "team_avg_reliability": team_avg_reliability,
+        "generated_at": datetime.now(),
     })
 
 

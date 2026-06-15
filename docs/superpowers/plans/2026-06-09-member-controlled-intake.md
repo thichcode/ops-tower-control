@@ -129,7 +129,7 @@ Implement CLI flags:
 --member-email engineer.a@example.com
 --output package.json
 --preview
---send-url http://localhost:8000/api/intake/package
+--send-url http://localhost:8080/api/intake/package
 ```
 
 The helper should read local JSON, normalize `items` or Power Automate `value` arrays into the package schema, redact body excerpts, print preview counts, write output if requested, and POST package JSON if `--send-url` is provided.

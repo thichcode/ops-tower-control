@@ -6,6 +6,7 @@ from datetime import datetime, timezone, timedelta
 
 from app.database import get_db
 from app.models import User, WorkItem, Capacity, Service
+from app.services.query_utils import average_cycle_days, month_key_bounds
 from app.templates import TemplateResponse
 
 router = APIRouter()
@@ -48,9 +49,11 @@ def member_detail(user_id: int, request: Request, db: Session = Depends(get_db))
     available_hours = capacity_hours - leave_hours - meeting_hours
 
     # Current month demand
+    month_start, month_end = month_key_bounds(month_key)
     demand = db.query(func.coalesce(func.sum(WorkItem.estimate_hours), 0)).filter(
         WorkItem.assignee_id == user_id,
-        func.strftime("%Y-%m", WorkItem.created_at) == month_key,
+        WorkItem.created_at >= month_start,
+        WorkItem.created_at <= month_end,
     ).scalar() or 0
     demand_hours = float(demand)
 
@@ -72,14 +75,12 @@ def member_detail(user_id: int, request: Request, db: Session = Depends(get_db))
     throughput.reverse()
 
     # Cycle time (avg days from created to completed)
-    avg_cycle = db.query(
-        func.avg(func.julianday(WorkItem.completed_at) - func.julianday(WorkItem.created_at))
-    ).filter(
+    completed_items = db.query(WorkItem.created_at, WorkItem.completed_at).filter(
         WorkItem.assignee_id == user_id,
         WorkItem.status == "Done",
         WorkItem.completed_at.isnot(None),
-    ).scalar()
-    cycle_time = round(float(avg_cycle or 0), 1)
+    ).all()
+    cycle_time = round(average_cycle_days(completed_items), 1)
 
     # WIP by service
     wip_services = db.query(
@@ -151,6 +152,15 @@ def create_user(
 def delete_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if user:
-        db.delete(user)
+        user.is_active = False
+        db.commit()
+    return RedirectResponse(url="/users", status_code=303)
+
+
+@router.post("/users/{user_id}/activate")
+def activate_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        user.is_active = True
         db.commit()
     return RedirectResponse(url="/users", status_code=303)

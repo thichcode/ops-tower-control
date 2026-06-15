@@ -4,47 +4,98 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Ops Control Tower{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #14213d; --muted: #64748b; --line: #e2e8f0; --surface: #ffffff;
+      --canvas: #f5f7fb; --nav: #101b33; --nav-soft: #1c2a47; --brand: #2563eb;
+      --good: #059669; --warn: #d97706; --bad: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--canvas); color: var(--ink); font-family: "DM Sans", sans-serif; }
+    h1,h2,h3,h4,h5,h6,.brand-name { font-family: "Manrope", sans-serif; letter-spacing: -.025em; }
+    a { color: #1d4ed8; }
+    .app-shell { min-height: 100vh; }
+    .sidebar { position: fixed; inset: 0 auto 0 0; width: 248px; padding: 22px 16px; background: var(--nav); color: white; overflow-y: auto; z-index: 1030; }
+    .brand { display: flex; gap: 11px; align-items: center; padding: 0 8px 22px; border-bottom: 1px solid rgba(255,255,255,.09); }
+    .brand-mark { display: grid; place-items: center; width: 39px; height: 39px; border-radius: 12px; background: linear-gradient(135deg,#3b82f6,#14b8a6); font: 800 18px Manrope; }
+    .brand-name { font-size: 15px; font-weight: 800; line-height: 1.1; }
+    .brand-sub { color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: .13em; margin-top: 4px; }
+    .nav-section { margin: 22px 9px 8px; color: #71809b; font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    .side-link { display: flex; align-items: center; gap: 11px; padding: 9px 11px; margin: 3px 0; border-radius: 9px; color: #bdc8da; text-decoration: none; font-size: 13px; font-weight: 600; }
+    .side-link:hover,.side-link.active { color: #fff; background: var(--nav-soft); }
+    .side-link.active { box-shadow: inset 3px 0 #60a5fa; }
+    .nav-icon { width: 20px; color: #94a3b8; text-align: center; font-size: 12px; font-weight: 800; }
+    .main { margin-left: 248px; min-height: 100vh; }
+    .topbar { height: 64px; padding: 0 34px; display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,.92); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 1020; backdrop-filter: blur(12px); }
+    .topbar-context { color: var(--muted); font-size: 12px; font-weight: 600; }
+    .live-pill { display: inline-flex; gap: 7px; align-items: center; padding: 6px 10px; border-radius: 20px; background: #ecfdf5; color: #047857; font-size: 11px; font-weight: 700; }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 4px #d1fae5; }
+    .content { max-width: 1540px; margin: 0 auto; padding: 30px 34px 50px; }
+    .page-header { display: flex; justify-content: space-between; gap: 22px; align-items: flex-start; margin-bottom: 24px; }
+    .eyebrow { color: var(--brand); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .15em; margin-bottom: 7px; }
+    .page-title { margin: 0; font-size: 28px; font-weight: 800; }
+    .page-subtitle { color: var(--muted); font-size: 13px; margin: 7px 0 0; }
+    .card { border: 1px solid var(--line); border-radius: 13px; box-shadow: 0 1px 2px rgba(15,23,42,.025); }
+    .card-header { background: #fff; border-bottom: 1px solid var(--line); padding: 15px 18px; font-weight: 700; }
+    .table-card { overflow: hidden; background: #fff; border: 1px solid var(--line); border-radius: 13px; }
+    .table { margin-bottom: 0; --bs-table-bg: transparent; }
+    .table thead th { padding: 12px 16px; border-bottom: 1px solid var(--line); background: #f8fafc; color: #64748b; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .table tbody td { padding: 13px 16px; border-color: #edf2f7; font-size: 13px; vertical-align: middle; }
+    .btn { border-radius: 8px; font-size: 12px; font-weight: 700; padding: 8px 13px; }
+    .btn-primary { background: var(--brand); border-color: var(--brand); }
+    .form-control,.form-select { border-color: #dbe3ef; border-radius: 8px; font-size: 13px; }
+    .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+    .status-good { color: #047857; background: #d1fae5; } .status-warn { color: #9a5b05; background: #fef3c7; } .status-bad { color: #b91c1c; background: #fee2e2; } .status-neutral { color: #475569; background: #e2e8f0; }
+    .metric-card { height: 100%; padding: 18px; background: #fff; border: 1px solid var(--line); border-radius: 13px; }
+    .metric-label { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+    .metric-value { margin: 10px 0 4px; font: 800 27px Manrope; letter-spacing: -.04em; }
+    .metric-note { color: var(--muted); font-size: 11px; }
+    @media (max-width: 991px) {
+      .sidebar { position: static; width: 100%; height: auto; } .sidebar .nav-section,.sidebar .side-link:not(.active) { display:none; }
+      .brand { border: 0; padding-bottom: 10px; } .main { margin-left: 0; } .topbar { display:none; } .content { padding: 22px 15px 40px; } .page-header { display:block; }
+    }
+    @media print { .sidebar,.topbar,.no-print { display:none!important; } .main { margin:0; } .content { max-width:none; padding:0; } body { background:#fff; } }
+  </style>
+  {% block head %}{% endblock %}
 </head>
 <body>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-    <div class="container">
-      <a class="navbar-brand" href="/">Ops Control Tower</a>
-      <div class="collapse navbar-collapse">
-        <ul class="navbar-nav ms-auto">
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Dashboards</a>
-            <ul class="dropdown-menu dropdown-menu-end">
-              <li><a class="dropdown-item" href="/dashboard/executive">📊 Executive Summary</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="/dashboard/demand-vs-capacity">Demand vs Capacity</a></li>
-              <li><a class="dropdown-item" href="/dashboard/top-requesters">Top Requesters</a></li>
-              <li><a class="dropdown-item" href="/dashboard/workload-by-member">Workload by Member</a></li>
-              <li><a class="dropdown-item" href="/dashboard/work-by-service">Work by Service</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="/dashboard/trends">📈 Trend Reports</a></li>
-              <li><a class="dropdown-item" href="/dashboard/triage">🔥 Triage</a></li>
-              <li><a class="dropdown-item" href="/dashboard/kpi">📊 KPI Metrics</a></li>
-            </ul>
-          </li>
-          <li class="nav-item"><a class="nav-link" href="/capacity">Capacity</a></li>
-          </li>
-          <li class="nav-item"><a class="nav-link" href="/">My Work</a></li>
-          <li class="nav-item"><a class="nav-link" href="/services">Services</a></li>
-          <li class="nav-item"><a class="nav-link" href="/users">Users</a></li>
-          <li class="nav-item"><a class="nav-link" href="/requester/status">Requester Portal</a></li>
-          <li class="nav-item"><a class="nav-link" href="/retention">🧠 Retention</a></li>
-          <li class="nav-item"><a class="nav-link" href="/performance">🏆 Scorecard</a></li>
-          <li class="nav-item"><a class="nav-link" href="/import">📥 Import</a></li>
-        </ul>
-      </div>
-    </div>
-  </nav>
-
-  <div class="container">
-    {% block content %}{% endblock %}
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% set path = request.url.path if request else '' %}
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand text-decoration-none text-white" href="/dashboard/executive">
+      <span class="brand-mark">OC</span><span><span class="brand-name d-block">Ops Control Tower</span><span class="brand-sub d-block">Management workspace</span></span>
+    </a>
+    <div class="nav-section">Command Center</div>
+    <a class="side-link {{ 'active' if path == '/dashboard/executive' }}" href="/dashboard/executive"><span class="nav-icon">01</span> Executive Brief</a>
+    <a class="side-link {{ 'active' if path == '/' }}" href="/"><span class="nav-icon">02</span> Work Portfolio</a>
+    <a class="side-link {{ 'active' if path == '/dashboard/triage' }}" href="/dashboard/triage"><span class="nav-icon">03</span> Priority Triage</a>
+    <div class="nav-section">Performance</div>
+    <a class="side-link {{ 'active' if path == '/dashboard/demand-vs-capacity' }}" href="/dashboard/demand-vs-capacity"><span class="nav-icon">04</span> Demand & Capacity</a>
+    <a class="side-link {{ 'active' if path == '/dashboard/kpi' }}" href="/dashboard/kpi"><span class="nav-icon">05</span> Operating KPIs</a>
+    <a class="side-link {{ 'active' if path == '/performance' }}" href="/performance"><span class="nav-icon">06</span> Team Scorecard</a>
+    <a class="side-link {{ 'active' if path == '/retention' }}" href="/retention"><span class="nav-icon">07</span> People Risk</a>
+    <div class="nav-section">Analysis</div>
+    <a class="side-link {{ 'active' if path == '/dashboard/trends' }}" href="/dashboard/trends"><span class="nav-icon">08</span> Trends</a>
+    <a class="side-link {{ 'active' if path in ['/dashboard/top-requesters','/dashboard/workload-by-member','/dashboard/work-by-service'] }}" href="/dashboard/top-requesters"><span class="nav-icon">09</span> Demand Analysis</a>
+    <div class="nav-section">Administration</div>
+    <a class="side-link {{ 'active' if path == '/capacity' }}" href="/capacity"><span class="nav-icon">10</span> Capacity Planning</a>
+    <a class="side-link {{ 'active' if path == '/users' }}" href="/users"><span class="nav-icon">11</span> Team Members</a>
+    <a class="side-link {{ 'active' if path == '/services' }}" href="/services"><span class="nav-icon">12</span> Service Catalog</a>
+    <a class="side-link {{ 'active' if path == '/import' }}" href="/import"><span class="nav-icon">13</span> Data Intake</a>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-context">Operational Intelligence / {% block context %}Control Tower{% endblock %}</div>
+      <div class="d-flex gap-3 align-items-center"><a href="/requester/status" class="text-decoration-none topbar-context">Requester portal</a><span class="live-pill"><span class="live-dot"></span> Live operational data</span></div>
+    </header>
+    <div class="content">{% block content %}{% endblock %}</div>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% block scripts %}{% endblock %}
 </body>
 </html>

@@ -27,6 +27,15 @@ def create_service(name: str = Form(...), category: str = Form(None), db: Sessio
 def delete_service(service_id: int, db: Session = Depends(get_db)):
     service = db.query(Service).filter(Service.id == service_id).first()
     if service:
-        db.delete(service)
+        service.status = "inactive"
+        db.commit()
+    return RedirectResponse(url="/services", status_code=303)
+
+
+@router.post("/services/{service_id}/activate")
+def activate_service(service_id: int, db: Session = Depends(get_db)):
+    service = db.query(Service).filter(Service.id == service_id).first()
+    if service:
+        service.status = "active"
         db.commit()
     return RedirectResponse(url="/services", status_code=303)
