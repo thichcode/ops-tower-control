@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{% if profile_mode %}Profile{% else %}Login{% endif %} | Ops Control Tower{% endblock %}
+{% block context %}{% if profile_mode %}Profile{% else %}Login{% endif %}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-center mt-5">
+  <div class="card" style="max-width:420px;width:100%">
+    <div class="card-body p-4">
+      {% if profile_mode %}
+        <h4 class="mb-3">{{ user.display_name }}</h4>
+        <div class="mb-3"><span class="metric-label">Email</span><div>{{ user.email }}</div></div>
+        <div class="mb-3"><span class="metric-label">Role</span><div><span class="status-pill status-neutral">{{ user.role }}</span></div></div>
+        <hr>
+        <h5 class="mb-3">Change password</h5>
+      {% else %}
+        <h4 class="mb-3">Login</h4>
+      {% endif %}
+      {% if error %}<div class="alert alert-danger py-2 small">{{ error }}</div>{% endif %}
+      {% if success %}<div class="alert alert-success py-2 small">{{ success }}</div>{% endif %}
+      <form method="POST" action="{% if profile_mode %}/auth/profile/password{% else %}/auth/login{% endif %}">
+        {% if profile_mode %}
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Current password</label>
+          <input type="password" name="current_password" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-bold">New password</label>
+          <input type="password" name="new_password" class="form-control" required minlength="6">
+        </div>
+        <button class="btn btn-primary w-100">Update password</button>
+        {% else %}
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Email</label>
+          <input type="email" name="email" class="form-control" required autofocus>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Password</label>
+          <input type="password" name="password" class="form-control" required>
+        </div>
+        <button class="btn btn-primary w-100">Login</button>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

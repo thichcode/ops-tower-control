@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
-from app.models import Service, User, WorkItem
+from app.models import AIReview, Service, User, WorkItem, WorkItemEvidence
 
 
 class MemberIntakeTest(unittest.TestCase):
@@ -90,6 +90,33 @@ class MemberIntakeTest(unittest.TestCase):
         self.assertEqual(second["skipped"], 1)
         self.assertEqual(self.db.query(WorkItem).count(), 1)
 
+    def test_attaches_new_message_from_same_teams_thread_for_review(self):
+        from app.services.member_intake import import_member_package
+
+        first = import_member_package(self.db, self.package())
+        second = import_member_package(self.db, self.package(
+            source_id="msg-2",
+            title="Requester confirmation",
+            body_excerpt="The DNS issue is resolved, thank you.",
+            status_hint="Open",
+        ))
+
+        self.assertEqual(first["imported"], 1)
+        self.assertEqual(second["imported"], 0)
+        self.assertEqual(second["evidence_attached"], 1)
+        self.assertEqual(second["review"], 1)
+        self.assertEqual(self.db.query(WorkItem).count(), 1)
+        self.assertEqual(self.db.query(WorkItemEvidence).count(), 2)
+        self.assertEqual(self.db.query(AIReview).count(), 1)
+
+        duplicate_reply = import_member_package(self.db, self.package(
+            source_id="msg-2",
+            title="Requester confirmation",
+            body_excerpt="The DNS issue is resolved, thank you.",
+        ))
+        self.assertEqual(duplicate_reply["skipped"], 1)
+        self.assertEqual(self.db.query(WorkItemEvidence).count(), 2)
+
     def test_marks_missing_service_for_review(self):
         from app.services.member_intake import import_member_package
 
@@ -99,6 +126,7 @@ class MemberIntakeTest(unittest.TestCase):
         self.assertEqual(result["review"], 1)
         item = self.db.query(WorkItem).one()
         self.assertIn("Needs review: unknown service", item.notes)
+        self.assertEqual(self.db.query(AIReview).count(), 1)
 
     def test_imports_service_alias_with_confidence_note(self):
         from app.services.member_intake import import_member_package
@@ -152,6 +180,20 @@ class MemberIntakeTest(unittest.TestCase):
         self.assertEqual(identity["email"], "engineer.a@example.com")
         self.assertEqual(identity["name"], "A Nguyen")
         self.assertEqual(identity["confidence"], 0.85)
+
+
+    def test_handles_race_condition_on_source_id(self):
+        from app.services.member_intake import import_member_package
+
+        existing = WorkItem(title="Existing", source_id="Teams:race-import")
+        self.db.add(existing)
+        self.db.flush()
+
+        pkg = self.package(source_id="race-import")
+        result = import_member_package(self.db, pkg)
+
+        self.assertEqual(result["imported"], 0)
+        self.assertEqual(result["skipped"], 1)
 
 
 if __name__ == "__main__":

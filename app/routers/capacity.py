@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import RedirectResponse
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from datetime import datetime
 from decimal import Decimal
@@ -71,21 +72,25 @@ def set_capacity(
         Capacity.month == month,
     ).first()
 
-    if existing:
-        existing.capacity_hours = capacity_hours
-        existing.leave_hours = leave_hours
-        existing.meeting_hours = meeting_hours
-        existing.notes = notes
-    else:
-        cap = Capacity(
-            user_id=user_id,
-            month=month,
-            capacity_hours=capacity_hours,
-            leave_hours=leave_hours,
-            meeting_hours=meeting_hours,
-            notes=notes,
-        )
-        db.add(cap)
+    try:
+        with db.begin_nested():
+            if existing:
+                existing.capacity_hours = capacity_hours
+                existing.leave_hours = leave_hours
+                existing.meeting_hours = meeting_hours
+                existing.notes = notes
+            else:
+                cap = Capacity(
+                    user_id=user_id,
+                    month=month,
+                    capacity_hours=capacity_hours,
+                    leave_hours=leave_hours,
+                    meeting_hours=meeting_hours,
+                    notes=notes,
+                )
+                db.add(cap)
+    except IntegrityError:
+        return RedirectResponse(url=f"/capacity?month={month}&error=duplicate", status_code=303)
 
     db.commit()
     return RedirectResponse(url=f"/capacity?month={month}", status_code=303)

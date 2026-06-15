@@ -11,6 +11,7 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     display_name = Column(Text, nullable=False)
     email = Column(Text, unique=True, nullable=False)
+    password_hash = Column(Text, nullable=True)
     role = Column(Text, default="member")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -44,12 +45,47 @@ class WorkItem(Base):
     estimate_hours = Column(Numeric(10, 2), nullable=True)
     actual_hours = Column(Numeric(10, 2), nullable=True)
     blocked_reason = Column(Text, nullable=True)
+    requester_token = Column(Text, nullable=True, unique=True)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     completed_at = Column(DateTime, nullable=True)
 
     service = relationship("Service")
     assignee = relationship("User")
+
+
+class AIReview(Base):
+    __tablename__ = "ai_reviews"
+
+    id = Column(Integer, primary_key=True)
+    work_item_id = Column(Integer, ForeignKey("work_items.id"), nullable=False)
+    state = Column(Text, nullable=False, default="pending")
+    provider = Column(Text, nullable=False, default="rules")
+    model = Column(Text, nullable=True)
+    evidence = Column(JSON, nullable=False)
+    suggestion = Column(JSON, nullable=True)
+    error = Column(Text, nullable=True)
+    reviewer_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    reviewed_at = Column(DateTime, nullable=True)
+
+    work_item = relationship("WorkItem")
+
+
+class WorkItemEvidence(Base):
+    __tablename__ = "work_item_evidence"
+
+    id = Column(Integer, primary_key=True)
+    work_item_id = Column(Integer, ForeignKey("work_items.id"), nullable=False)
+    source = Column(Text, nullable=False)
+    source_message_id = Column(Text, nullable=True)
+    thread_id = Column(Text, nullable=True)
+    sender_name = Column(Text, nullable=True)
+    body_excerpt = Column(Text, nullable=True)
+    event_type = Column(Text, nullable=False, default="message")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    work_item = relationship("WorkItem")
 
 
 class Capacity(Base):

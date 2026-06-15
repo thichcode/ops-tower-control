@@ -86,11 +86,12 @@
     <a class="side-link {{ 'active' if path == '/users' }}" href="/users"><span class="nav-icon">11</span> Team Members</a>
     <a class="side-link {{ 'active' if path == '/services' }}" href="/services"><span class="nav-icon">12</span> Service Catalog</a>
     <a class="side-link {{ 'active' if path == '/import' }}" href="/import"><span class="nav-icon">13</span> Data Intake</a>
+    <a class="side-link {{ 'active' if path == '/reviews' }}" href="/reviews"><span class="nav-icon">14</span> AI Review Queue</a>
   </aside>
   <main class="main">
     <header class="topbar">
       <div class="topbar-context">Operational Intelligence / {% block context %}Control Tower{% endblock %}</div>
-      <div class="d-flex gap-3 align-items-center"><a href="/requester/status" class="text-decoration-none topbar-context">Requester portal</a><span class="live-pill"><span class="live-dot"></span> Live operational data</span></div>
+      <div class="d-flex gap-3 align-items-center"><a href="/requester/status" class="text-decoration-none topbar-context">Requester portal</a><span class="live-pill"><span class="live-dot"></span> Live operational data</span>{% set session_data = request.scope.get('session', {}) %}{% if session_data.get('user_id') %}<a href="/auth/profile" class="text-decoration-none topbar-context">Profile</a><form method="POST" action="/auth/logout" class="m-0" style="display:inline"><button class="btn btn-sm btn-outline-secondary">Logout</button></form>{% else %}<a href="/auth/login" class="btn btn-sm btn-primary">Login</a>{% endif %}</div>
     </header>
     <div class="content">{% block content %}{% endblock %}</div>
   </main>

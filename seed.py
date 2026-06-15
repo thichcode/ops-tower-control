@@ -1,16 +1,19 @@
 from app.database import SessionLocal, engine, Base
 from app.models import User, Service, WorkItem, Capacity
+from app.auth import hash_password
 from datetime import datetime, timezone, timedelta
 
 Base.metadata.create_all(bind=engine)
 db = SessionLocal()
 
+_DEFAULT_PW = hash_password("changeme")
+
 try:
     users = [
-        User(display_name="Engineer A", email="eng.a@company.com", role="member"),
-        User(display_name="Engineer B", email="eng.b@company.com", role="member"),
-        User(display_name="Engineer C", email="eng.c@company.com", role="member"),
-        User(display_name="Lead A", email="lead.a@company.com", role="leader"),
+        User(display_name="Engineer A", email="eng.a@company.com", role="member", password_hash=_DEFAULT_PW),
+        User(display_name="Engineer B", email="eng.b@company.com", role="member", password_hash=_DEFAULT_PW),
+        User(display_name="Engineer C", email="eng.c@company.com", role="member", password_hash=_DEFAULT_PW),
+        User(display_name="Lead A", email="lead.a@company.com", role="leader", password_hash=_DEFAULT_PW),
     ]
     db.add_all(users)
     db.flush()

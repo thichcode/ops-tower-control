@@ -1,11 +1,13 @@
+import secrets
 import re
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Any
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Service, User, WorkItem
+from app.models import Service, User, WorkItem, WorkItemEvidence
 from app.services.intake_rules import (
     CONFIDENCE_ALIAS,
     CONFIDENCE_EXACT,
@@ -15,6 +17,7 @@ from app.services.intake_rules import (
     resolve_identity_alias,
     resolve_service_alias,
 )
+from app.services.ai_review import queue_review
 
 
 SECRET_PATTERNS = [
@@ -53,6 +56,7 @@ def import_member_package(db: Session, package: dict[str, Any]) -> dict[str, Any
     skipped = 0
     review = 0
     low_confidence = 0
+    evidence_attached = 0
     errors = []
     collector = package.get("collector") if isinstance(package.get("collector"), dict) else {}
 
@@ -68,52 +72,75 @@ def import_member_package(db: Session, package: dict[str, Any]) -> dict[str, Any
         if source_id and db.query(WorkItem).filter(WorkItem.source_id == source_id).first():
             skipped += 1
             continue
+        if source_id and db.query(WorkItemEvidence).filter(
+            WorkItemEvidence.source_message_id == source_id
+        ).first():
+            skipped += 1
+            continue
+        thread_item = _find_thread_item(db, source, evidence.get("thread_id"))
+        if thread_item:
+            _add_evidence(db, thread_item, evidence, source)
+            queue_review(db, thread_item, "New conversation evidence requires review")
+            evidence_attached += 1
+            review += 1
+            continue
 
         assignee, assignee_conf = _resolve_user(db, evidence, collector)
         if _find_probable_duplicate(db, title, assignee.id if assignee else None, evidence.get("created_at")):
             skipped += 1
             continue
 
-        service, service_conf, service_review = _resolve_service(db, evidence, title)
-        status, status_conf = _detect_status(evidence)
-        overall_conf = min(assignee_conf, service_conf, status_conf)
-        review_reasons = []
-        if assignee_conf < REVIEW_THRESHOLD:
-            review_reasons.append("Needs review: low assignee confidence")
-        if service_review:
-            review_reasons.append("Needs review: unknown service")
-        elif service_conf < REVIEW_THRESHOLD:
-            review_reasons.append("Needs review: low service confidence")
-        if status_conf < REVIEW_THRESHOLD and (assignee_conf < REVIEW_THRESHOLD or service_conf < REVIEW_THRESHOLD):
-            review_reasons.append("Needs review: low status confidence")
-        notes = review_reasons + [_confidence_note(assignee_conf, service_conf, status_conf, overall_conf)]
-        if review_reasons:
-            review += 1
-        if overall_conf < REVIEW_THRESHOLD:
-            low_confidence += 1
+        try:
+            with db.begin_nested():
+                service, service_conf, service_review = _resolve_service(db, evidence, title)
+                status, status_conf = _detect_status(evidence)
+                overall_conf = min(assignee_conf, service_conf, status_conf)
+                review_reasons = []
+                if assignee_conf < REVIEW_THRESHOLD:
+                    review_reasons.append("Needs review: low assignee confidence")
+                if service_review:
+                    review_reasons.append("Needs review: unknown service")
+                elif service_conf < REVIEW_THRESHOLD:
+                    review_reasons.append("Needs review: low service confidence")
+                if status_conf < REVIEW_THRESHOLD and (assignee_conf < REVIEW_THRESHOLD or service_conf < REVIEW_THRESHOLD):
+                    review_reasons.append("Needs review: low status confidence")
+                notes = review_reasons + [_confidence_note(assignee_conf, service_conf, status_conf, overall_conf)]
+                if review_reasons:
+                    review += 1
+                if overall_conf < REVIEW_THRESHOLD:
+                    low_confidence += 1
 
-        item = WorkItem(
-            title=title[:500],
-            description=redact_text(evidence.get("body_excerpt")),
-            service_id=service.id if service else None,
-            work_type=evidence.get("work_type") or "Other",
-            source=source,
-            source_url=evidence.get("source_url"),
-            source_id=source_id,
-            requester_name=evidence.get("sender_name"),
-            requester_email=evidence.get("sender_email"),
-            assignee_id=assignee.id if assignee else None,
-            status=status,
-            estimate_hours=_decimal_or_none(evidence.get("estimate_hours")),
-            notes="; ".join(notes) if notes else None,
-            created_at=_parse_datetime(evidence.get("created_at")),
-            completed_at=datetime.now(timezone.utc) if status == "Done" else None,
-        )
-        db.add(item)
-        imported += 1
+                item = WorkItem(
+                    title=title[:500],
+                    description=redact_text(evidence.get("body_excerpt")),
+                    service_id=service.id if service else None,
+                    work_type=evidence.get("work_type") or "Other",
+                    source=source,
+                    source_url=evidence.get("source_url"),
+                    source_id=source_id,
+                    requester_name=evidence.get("sender_name"),
+                    requester_email=evidence.get("sender_email"),
+                    assignee_id=assignee.id if assignee else None,
+                    status=status,
+                    estimate_hours=_decimal_or_none(evidence.get("estimate_hours")),
+                    requester_token=secrets.token_urlsafe(16),
+                    notes="; ".join(notes) if notes else None,
+                    created_at=_parse_datetime(evidence.get("created_at")),
+                    completed_at=datetime.now(timezone.utc) if status == "Done" else None,
+                )
+                db.add(item)
+                db.flush()
+                _add_evidence(db, item, evidence, source)
+                if review_reasons:
+                    queue_review(db, item, "; ".join(review_reasons))
+            imported += 1
+        except IntegrityError:
+            skipped += 1
 
     db.commit()
-    return _result(imported > 0, imported, skipped, review, len(items), errors, low_confidence)
+    result = _result(imported > 0 or evidence_attached > 0, imported, skipped, review, len(items), errors, low_confidence)
+    result["evidence_attached"] = evidence_attached
+    return result
 
 
 def _result(success: bool, imported: int, skipped: int, review: int, total: int, errors: list[str], low_confidence: int = 0) -> dict[str, Any]:
@@ -230,3 +257,33 @@ def _find_probable_duplicate(db: Session, title: str, assignee_id: int | None, c
         WorkItem.created_at >= start,
         WorkItem.created_at <= end,
     ).first()
+
+
+def _find_thread_item(db: Session, source: str, thread_id: Any) -> WorkItem | None:
+    if source.lower() != "teams" or not thread_id:
+        return None
+    return db.query(WorkItem).join(
+        WorkItemEvidence, WorkItemEvidence.work_item_id == WorkItem.id
+    ).filter(
+        WorkItemEvidence.source == source,
+        WorkItemEvidence.thread_id == str(thread_id).strip(),
+    ).first()
+
+
+def _add_evidence(db: Session, item: WorkItem, evidence: dict[str, Any], source: str) -> None:
+    raw_message_id = evidence.get("source_id")
+    message_id = f"{source}:{str(raw_message_id).strip()}" if raw_message_id else None
+    if message_id and db.query(WorkItemEvidence).filter(
+        WorkItemEvidence.source_message_id == message_id
+    ).first():
+        return
+    db.add(WorkItemEvidence(
+        work_item_id=item.id,
+        source=source,
+        source_message_id=message_id,
+        thread_id=str(evidence.get("thread_id")).strip() if evidence.get("thread_id") else None,
+        sender_name=evidence.get("sender_name"),
+        body_excerpt=redact_text(evidence.get("body_excerpt")),
+        event_type=evidence.get("event_type") or "message",
+        created_at=_parse_datetime(evidence.get("created_at")),
+    ))
