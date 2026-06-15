@@ -9,24 +9,38 @@ from app.config import AI_REVIEW_ENABLED, AI_REVIEW_MODEL, OPENAI_API_KEY
 from app.database import get_db
 from app.models import AIReview, Service, User, WorkItem
 from app.services.ai_review import apply_review, create_or_refresh_review, reject_review as ai_reject_review
+from app.services.pagination import paginate
 from app.templates import TemplateResponse
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 
 
 @router.get("")
-def review_queue(request: Request, state: str = "pending", db: Session = Depends(get_db)):
-    reviews = db.query(AIReview).filter(AIReview.state == state).order_by(AIReview.created_at.desc()).all()
+def review_queue(
+    request: Request,
+    state: str = "pending",
+    page: int = 1,
+    per_page: int = 50,
+    db: Session = Depends(get_db),
+):
+    query = db.query(AIReview).filter(AIReview.state == state).order_by(AIReview.created_at.desc())
+    result = paginate(query, page=page, per_page=per_page)
     services = db.query(Service).filter(Service.status == "active").order_by(Service.name).all()
     users = db.query(User).filter(User.is_active == True).order_by(User.display_name).all()
     return TemplateResponse("reviews.html", {
         "request": request,
-        "reviews": reviews,
+        "reviews": result["items"],
         "services": services,
         "users": users,
         "state": state,
         "ai_enabled": AI_REVIEW_ENABLED and bool(OPENAI_API_KEY),
         "ai_model": AI_REVIEW_MODEL,
+        "page": result["page"],
+        "per_page": result["per_page"],
+        "total": result["total"],
+        "pages": result["pages"],
+        "has_prev": result["has_prev"],
+        "has_next": result["has_next"],
     })
 
 

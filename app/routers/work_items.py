@@ -9,6 +9,7 @@ from typing import Optional
 
 from app.database import get_db
 from app.models import WorkItem, User, Service
+from app.services.pagination import paginate
 from app.templates import TemplateResponse
 
 router = APIRouter()
@@ -20,6 +21,8 @@ def my_work(
     status: Optional[str] = None,
     assignee_id: Optional[int] = None,
     q: Optional[str] = None,
+    page: int = 1,
+    per_page: int = 50,
     db: Session = Depends(get_db),
 ):
     query = db.query(WorkItem)
@@ -29,10 +32,11 @@ def my_work(
         query = query.filter(WorkItem.assignee_id == assignee_id)
     if q:
         query = query.filter(WorkItem.title.ilike(f"%{q}%"))
-    work_items = query.order_by(WorkItem.created_at.desc()).all()
+    query = query.order_by(WorkItem.created_at.desc())
+    result = paginate(query, page=page, per_page=per_page)
 
     now = datetime.now(timezone.utc)
-    for item in work_items:
+    for item in result["items"]:
         created = item.created_at.replace(tzinfo=timezone.utc) if item.created_at.tzinfo is None else item.created_at
         item.age_days = (now - created).days
 
@@ -41,9 +45,15 @@ def my_work(
 
     return TemplateResponse("my_work.html", {
         "request": request,
-        "work_items": work_items,
+        "work_items": result["items"],
         "users": users,
         "services": services,
+        "page": result["page"],
+        "per_page": result["per_page"],
+        "total": result["total"],
+        "pages": result["pages"],
+        "has_prev": result["has_prev"],
+        "has_next": result["has_next"],
     })
 
 
