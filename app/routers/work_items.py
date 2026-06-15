@@ -1,3 +1,5 @@
+import secrets
+
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -64,6 +66,7 @@ def create_work_item(
         requester_name=requester_name,
         assignee_id=assignee_id,
         estimate_hours=estimate_hours,
+        requester_token=secrets.token_urlsafe(16),
     )
     db.add(item)
     db.commit()

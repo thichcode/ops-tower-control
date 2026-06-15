@@ -38,6 +38,8 @@ Use the "Compose" action to build the JSON payload:
   "assignee_email": "@{triggerOutputs()?['body/reply/from/user/userPrincipalName']}",
   "team_name": "@{triggerOutputs()?['body/teamName']}",
   "channel_name": "@{triggerOutputs()?['body/channelName']}",
+  "message_id": "@{triggerOutputs()?['body/reply/id']}",
+  "conversation_id": "@{triggerOutputs()?['body/reply/replyToId']}",
   "message_url": "@{triggerOutputs()?['body/reply/webUrl']}",
   "created_at": "@{utcNow()}"
 }
@@ -58,6 +60,10 @@ Post a reply in the thread:
 ```
 Task captured: @{body('HTTP')?['title']} (ID: @{body('HTTP')?['id']})
 ```
+
+Messages with the same `conversation_id` are attached to the existing task as
+conversation evidence and sent to the AI Review Queue. They do not change task
+status until a lead approves the suggestion on the web.
 
 ---
 
