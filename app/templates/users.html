@@ -19,9 +19,15 @@
       <td>{{ u.role }}</td>
       <td>{{ 'Yes' if u.is_active else 'No' }}</td>
       <td>
-        <form method="POST" action="/users/{{ u.id }}/delete" onsubmit="return confirm('Delete {{ u.display_name }}?')">
-          <button class="btn btn-sm btn-danger">Delete</button>
+        {% if u.is_active %}
+        <form method="POST" action="/users/{{ u.id }}/delete" onsubmit="return confirm('Deactivate {{ u.display_name }}? Existing tasks will be preserved.')">
+          <button class="btn btn-sm btn-outline-danger">Deactivate</button>
         </form>
+        {% else %}
+        <form method="POST" action="/users/{{ u.id }}/activate">
+          <button class="btn btn-sm btn-outline-success">Reactivate</button>
+        </form>
+        {% endif %}
       </td>
     </tr>
     {% else %}

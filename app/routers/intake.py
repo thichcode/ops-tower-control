@@ -66,6 +66,13 @@ def intake_teams(payload: TeamsIntakePayload, db: Session = Depends(get_db)):
     }
 
 
+@router.post("/package")
+def intake_package(package: dict, db: Session = Depends(get_db)):
+    from app.services.member_intake import import_member_package
+
+    return import_member_package(db, package)
+
+
 @router.post("/sdp")
 def intake_sdp(mock: bool = False, dry_run: bool = False, db: Session = Depends(get_db)):
     from app.services.sdp_sync import sync_sdp_tickets

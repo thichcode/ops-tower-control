@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Leadership Proposal | Ops Control Tower{% endblock %}
+{% block context %}Leadership Proposal{% endblock %}
+{% block head %}
+<style>
+  .proposal-cover { padding:28px; border-radius:16px; background:linear-gradient(125deg,#14213d,#20375f); color:#fff; }
+  .proposal-row { display:grid; grid-template-columns:48px 1.2fr .8fr 1.3fr; gap:18px; align-items:start; padding:17px 20px; border-bottom:1px solid #edf2f7; }
+  .proposal-row:last-child { border:0; }
+  .rank-circle { display:grid; place-items:center; width:38px; height:38px; border-radius:50%; background:#eff6ff; color:#1d4ed8; font:800 12px Manrope; }
+  .hero-number { font:800 30px Manrope; letter-spacing:-.05em; }.hero-label { color:#cbd5e1; font-size:9px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+  @media(max-width:900px){.proposal-row{grid-template-columns:40px 1fr}.proposal-row>div:nth-child(n+3){grid-column:2}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header no-print"><div><div class="eyebrow">Decision document / {{ current_period.label() }}</div><h1 class="page-title">Leadership Performance Proposal</h1><p class="page-subtitle">Recommendation summary with transparent metrics and evidence.</p></div><div class="d-flex gap-2"><button onclick="window.print()" class="btn btn-primary">Print / Save PDF</button><a href="/performance?period={{ current_period.key() }}" class="btn btn-outline-secondary">Back to scorecard</a></div></div>
+<section class="proposal-cover mb-4"><div class="row align-items-end g-4"><div class="col-lg-7"><div class="text-uppercase small text-white-50 fw-bold mb-2">Ops Control Tower · Management proposal</div><h2 class="mb-2">Recognition and Development Review</h2><p class="mb-0 text-white-50">Prepared for leadership review · {{ current_period.label() }} · Generated {{ generated_at.strftime('%d %b %Y') }}</p></div><div class="col-lg-5"><div class="row g-3"><div class="col-4"><div class="hero-number">{{ team_size }}</div><div class="hero-label">Team size</div></div><div class="col-4"><div class="hero-number">{{ team_productivity }}</div><div class="hero-label">Delivered</div></div><div class="col-4"><div class="hero-number">{{ "%.0f" % team_avg_reliability }}%</div><div class="hero-label">Reliability</div></div></div></div></div></section>
+
+<div class="section-label">Executive recommendation</div>
+<div class="row g-3 mb-4"><div class="col-md-4"><div class="metric-card"><div class="metric-label">Recognition candidates</div><div class="metric-value">{{ 3 if proposals|length >= 3 else proposals|length }}</div><div class="metric-note">Top balanced contributors for leadership consideration</div></div></div><div class="col-md-4"><div class="metric-card"><div class="metric-label">Average output</div><div class="metric-value">{{ "%.1f" % team_avg_productivity }}</div><div class="metric-note">Completed items per active member</div></div></div><div class="col-md-4"><div class="metric-card"><div class="metric-label">Decision principle</div><div class="metric-value" style="font-size:19px">Evidence + context</div><div class="metric-note">Final decisions require manager validation</div></div></div></div>
+
+<div class="section-label">Member recommendations</div>
+<div class="card">
+{% for p in proposals %}
+  <div class="proposal-row">
+    <div class="rank-circle">{{ p.overall_rank }}</div>
+    <div><div class="fw-bold">{{ p.user.display_name }}</div><div class="metric-note mt-1">{{ p.rationale }}</div>{% if p.evidence %}<div class="mt-2 small"><strong>Evidence:</strong> {{ p.evidence.title }} <span class="text-muted">· {{ p.evidence.service }}</span></div>{% endif %}</div>
+    <div><span class="status-pill status-{{ p.tone }}">{{ p.action }}</span><div class="metric-note mt-2">{{ p['values']['productivity'] }} delivered · {{ "%.0f" % (p['values']['reliability']*100) }}% reliability</div></div>
+    <div><div class="metric-label mb-2">Observed strengths</div><div class="small fw-bold">{{ p.strengths|join(' · ') }}</div><div class="metric-note mt-2">Cycle time {{ "%.1f" % p['values']['efficiency'] }}d · {{ "%+.0f" % ((p['values']['improvement']-1)*100) }}% output trend</div></div>
+  </div>
+{% endfor %}
+</div>
+<div class="mt-4 p-3 border rounded bg-white small"><strong>Governance note.</strong> This proposal is generated from recorded work evidence. Leadership should validate business impact, role scope, task complexity and qualitative contribution before approval.</div>
+{% endblock %}

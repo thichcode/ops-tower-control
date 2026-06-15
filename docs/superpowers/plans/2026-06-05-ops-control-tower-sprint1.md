@@ -976,18 +976,18 @@ Expected: "Seed data created successfully!"
 
 - [ ] **Start the app**
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
 ```
 
 - [ ] **Verify flows**
-1. Open http://localhost:8000 — see My Work with 10 items
+1. Open http://localhost:8080 — see My Work with 10 items
 2. Test filter by status
 3. Test search
 4. Click "Quick Add" — create a new task
 5. Click "✓" on an Open task — should change to Done
 6. Click "⊘" on an Open task — should prompt for reason, change to Blocked
-7. Open http://localhost:8000/services — manage services
-8. Open http://localhost:8000/users — manage users
+7. Open http://localhost:8080/services — manage services
+8. Open http://localhost:8080/users — manage users
 9. Click a task title — edit form, save changes
 
 - [ ] **Final commit**

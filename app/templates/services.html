@@ -18,9 +18,15 @@
       <td>{{ s.category or '-' }}</td>
       <td>{{ s.status }}</td>
       <td>
-        <form method="POST" action="/services/{{ s.id }}/delete" onsubmit="return confirm('Delete {{ s.name }}?')">
-          <button class="btn btn-sm btn-danger">Delete</button>
+        {% if s.status == 'active' %}
+        <form method="POST" action="/services/{{ s.id }}/delete" onsubmit="return confirm('Deactivate {{ s.name }}? Existing tasks will be preserved.')">
+          <button class="btn btn-sm btn-outline-danger">Deactivate</button>
         </form>
+        {% else %}
+        <form method="POST" action="/services/{{ s.id }}/activate">
+          <button class="btn btn-sm btn-outline-success">Reactivate</button>
+        </form>
+        {% endif %}
       </td>
     </tr>
     {% else %}

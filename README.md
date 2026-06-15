@@ -1,6 +1,6 @@
 # 🏗️ Ops Control Tower
 
-> **Lightweight Operations Control Tower** — capture invisible work, measure demand vs capacity, and show who is requesting work from your team.
+> **Lightweight Operations Control Tower** — privacy-preserving ops evidence collector. Capture invisible work, measure demand vs capacity, and show who is requesting work from your team — without scanning everyone's chats.
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi)](https://fastapi.tiangolo.com)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python)](https://python.org)
@@ -25,7 +25,7 @@ Your team operates multiple enterprise platforms — ServiceDesk, GitLab, Kubern
 | Track workload by engineer | Workload by Member dashboard |
 | Measure demand vs capacity | Demand vs Capacity dashboard |
 | Track by service, type, source | Work by Service dashboard + filters |
-| Combine all sources | Teams, SDP, Zabbix, Manual — unified view |
+| Combine all sources (privacy-safe) | Member-controlled local helper + SDP + Zabbix + Manual — unified view |
 | Export reports | CSV export on every dashboard |
 
 ## 🖼️ Screenshots
@@ -54,6 +54,16 @@ Who's overloaded? Open items per member. Yellow highlight > 3 open.
 Which service consumes the most effort?
 
 ![Work by Service](screenshots/services_dash.png)
+
+### Services
+Service catalog — manage active/inactive services, assign categories.
+
+![Services](screenshots/services_dash.png)
+
+### Users 👥
+User management — view all members, active/inactive status.
+
+![Users](screenshots/users.png)
 
 ### Capacity Management
 Set capacity / leave / meeting hours per member per month.
@@ -107,8 +117,8 @@ Boss-facing Vietnamese CSV report for reward/recognition proposals. Top 3 → "�
 
 ![Reward Report](screenshots/reward_report.png)
 
-### Task Import 📥
-Team members collect their own Teams messages, summarize into tasks, save as JSON file, and upload to Ops Control Tower. Duplicate detection, auto-create new assignees/services. Includes sample file download.
+### Member Intake 📥
+Privacy-first intake: members use a local helper (`tools/member_helper.py`) to collect, filter, redact, and send evidence from Teams/email/SDP. Server never scans raw chats. Support for service alias resolution, identity matching, confidence scoring, secret redaction, and duplicate detection. Upload via web UI or direct API.
 
 ![Import](screenshots/import.png)
 
@@ -130,7 +140,7 @@ Team members collect their own Teams messages, summarize into tasks, save as JSO
 cp .env.example .env
 # Edit .env to set TEAMS_DIGEST_WEBHOOK and TEAMS_ALERT_WEBHOOK if needed
 docker compose up -d
-# Web: http://localhost:8000
+# Web: http://localhost:8080
 ```
 
 Includes `web` (FastAPI) + `db` (PostgreSQL 16) services with healthchecks and persistent volumes.
@@ -138,13 +148,13 @@ Includes `web` (FastAPI) + `db` (PostgreSQL 16) services with healthchecks and p
 ### Dev (SQLite, no DB service)
 ```bash
 docker compose --profile dev up -d web-dev
-# Web: http://localhost:8000
+# Web: http://localhost:8080
 ```
 
 ### With Adminer (DB UI)
 ```bash
 docker compose --profile tools up -d
-# Adminer: http://localhost:8080 (login: opsdash / opsdash / db)
+# Adminer: http://localhost:8081 (login: opsdash / opsdash / db)
 ```
 
 ### Stop & cleanup
@@ -168,16 +178,28 @@ opsdash/
 │   │   ├── work_items.py      # My Work, CRUD, Done/Blocked
 │   │   ├── services.py        # Service catalog
 │   │   ├── users.py           # User management + member detail page
-│   │   ├── intake.py          # Teams, SDP, Zabbix intake APIs
+│   │   ├── intake.py          # Teams, SDP, Zabbix, member package intake APIs
+│   │   ├── importer.py        # File upload (old format + member package)
+│   │   ├── reviews.py         # AI review queue (optional)
 │   │   ├── dashboards.py      # 8 dashboards (incl. executive summary) + CSV exports
 │   │   ├── capacity.py        # Capacity management
 │   │   ├── requester.py       # Requester status portal
-│   │   └── retention.py       # Retention risk dashboard
+│   │   ├── retention.py       # Retention risk dashboard
+│   │   └── performance.py     # Employee scorecard + reward report
 │   ├── services/
 │   │   ├── parser.py          # Teams command parser
+│   │   ├── member_intake.py   # Member package import (dedup, redact, confidence)
+│   │   ├── intake_rules.py    # Service/identity aliases, confidence constants
+│   │   ├── ai_review.py       # Opt-in AI classification review
 │   │   ├── sdp_sync.py        # SDP ticket sync
 │   │   ├── zabbix_sync.py     # Zabbix problem sync
-│   │   └── retention_alerts.py # Retention risk alerts
+│   │   ├── performance.py     # Scorecard computation
+│   │   ├── retention.py       # Retention score computation
+│   │   ├── retention_alerts.py # Retention risk alerts
+│   │   ├── leader_alerts.py   # Utilization/stale/requester spike alerts
+│   │   ├── daily_digest.py    # Daily Teams digest
+│   │   ├── notifications.py   # Notification helpers
+│   │   └── query_utils.py     # Shared query utilities
 │   └── templates/
 │       ├── base.html
 │       ├── my_work.html
@@ -194,6 +216,8 @@ opsdash/
 │       ├── retention.html
 │       └── retention_detail.html
 ├── cli.py                     # Terminal UI (ops ls, add, done, blocked, dashboard)
+├── tools/
+│   └── member_helper.py       # Local CLI helper — collect/filter/redact/send packages
 ├── sync_sdp.py                # SDP sync script (cron)
 ├── sync_zabbix.py             # Zabbix sync script (cron)
 ├── seed.py                    # Demo data
@@ -225,10 +249,10 @@ pip install -r requirements.txt
 python seed.py
 
 # Run
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
 ```
 
-Open **http://localhost:8000** in your browser.
+Open **http://localhost:8080** in your browser.
 
 ### Configuration
 
@@ -236,7 +260,7 @@ Set environment variables for production:
 
 ```bash
 # PostgreSQL (defaults to SQLite for dev)
-export DATABASE_URL="postgresql://user:pass@localhost:5432/opsdash"
+export DATABASE_URL="postgresql://user:pass@localhost:15432/opsdash"
 
 # SDP integration
 export SDP_API_URL="https://your-sdp/api/v3"
@@ -249,6 +273,20 @@ export ZABBIX_API_TOKEN="your-token"
 
 ## 🔌 Integrations
 
+### AI-assisted review
+
+OpsDash can optionally ask OpenAI to review uncertain task classifications. AI suggestions are stored in a review queue with evidence, confidence, and rationale. They never change a work item automatically; a lead must approve or reject each proposal.
+
+```bash
+AI_REVIEW_ENABLED=true
+AI_REVIEW_MODEL=gpt-5.5
+OPENAI_API_KEY=your-key
+```
+
+Open `/reviews` to process the queue. Without an API key, the same workflow remains available with deterministic rule-based suggestions.
+
+For Teams packages, messages sharing the same `thread_id` are attached as conversation evidence to one work item. New replies reopen the review workflow instead of automatically marking the task complete. Only redacted evidence stored in OpsDash is sent for AI review, and API responses are requested with storage disabled.
+
 ### Teams (Power Automate)
 
 1. Create a Power Automate flow triggered on reply to channel message
@@ -258,7 +296,7 @@ export ZABBIX_API_TOKEN="your-token"
 
 ```bash
 # Test the Teams intake API
-curl -X POST http://localhost:8000/api/intake/teams \
+curl -X POST http://localhost:8080/api/intake/teams \
   -H "Content-Type: application/json" \
   -d '{
     "command": "/task 4h",
@@ -358,6 +396,10 @@ print(r.status_code)
 - [ ] AI classifier (auto-classify service/type)
 - [x] Daily Teams digest
 - [x] Leader alerts (utilization > 120%, stale items, requester spikes)
+- [x] Sprint 6 — Member-Controlled Intake (privacy-first local helper + server package API)
+- [x] Intake Accuracy Rules (service aliases, identity aliases, confidence scoring)
+- [x] Service catalog management
+- [ ] Needs Review queue (UI for low-confidence items)
 - [ ] Service Health (Zabbix + SDP + risk score)
 
 ## 📄 License

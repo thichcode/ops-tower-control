@@ -7,6 +7,7 @@ from sqlalchemy import func, case, and_
 from sqlalchemy.orm import Session
 
 from app.models import User, WorkItem, Capacity, RetentionScore
+from app.services.query_utils import average_cycle_days
 
 
 @dataclass
@@ -63,16 +64,22 @@ def count_done(db: Session, user_id: int, start, end):
     ).scalar() or 0
 
 
+def count_activity(db: Session, user_id: int, start, end):
+    return db.query(func.count(WorkItem.id)).filter(
+        WorkItem.assignee_id == user_id,
+        WorkItem.created_at >= start,
+        WorkItem.created_at <= end,
+    ).scalar() or 0
+
+
 def avg_cycle_time(db: Session, user_id: int, start, end):
-    avg = db.query(
-        func.avg(func.julianday(WorkItem.completed_at) - func.julianday(WorkItem.created_at))
-    ).filter(
+    items = db.query(WorkItem.created_at, WorkItem.completed_at).filter(
         WorkItem.assignee_id == user_id,
         WorkItem.status == "Done",
         WorkItem.completed_at >= start,
         WorkItem.completed_at <= end,
-    ).scalar()
-    return float(avg) if avg else 0.0
+    ).all()
+    return average_cycle_days(items)
 
 
 def reliability_score(db: Session, user_id: int, start, end):
@@ -185,6 +192,7 @@ def risk_improvement_score(db: Session, user_id: int, period: Period):
 def compute_metrics(db: Session, user: User, period: Period):
     start, end = period.date_range()
     return {
+        "evidence_count": count_activity(db, user.id, start, end),
         "productivity": count_done(db, user.id, start, end),
         "efficiency": avg_cycle_time(db, user.id, start, end),
         "reliability": reliability_score(db, user.id, start, end),
@@ -234,7 +242,12 @@ def compute_performance(db: Session, period: Period):
     # Rank each metric
     metric_ranks = {}
     for metric_name, config in METRIC_CONFIG.items():
-        values = [(uid, m["metrics"][metric_name]) for uid, m in all_metrics.items()]
+        values = []
+        for uid, member in all_metrics.items():
+            metric_value = member["metrics"][metric_name]
+            if member["metrics"]["evidence_count"] == 0:
+                metric_value = float("inf") if config["lower_better"] else float("-inf")
+            values.append((uid, metric_value))
         metric_ranks[metric_name] = rank_metric(values, config["lower_better"])
 
     # Build results
@@ -266,10 +279,13 @@ def get_available_periods(db: Session) -> list[Period]:
         return [Period("quarter", datetime.now(timezone.utc).year, 1)]
 
     fy = first.year
-    ny = datetime.now(timezone.utc).year
+    now = datetime.now(timezone.utc)
+    ny = now.year
+    current_quarter = (now.month - 1) // 3 + 1
     periods = []
     for y in range(fy, ny + 1):
         periods.append(Period("year", y))
-        for q in range(1, 5):
+        quarter_limit = current_quarter if y == ny else 4
+        for q in range(1, quarter_limit + 1):
             periods.append(Period("quarter", y, q))
     return periods

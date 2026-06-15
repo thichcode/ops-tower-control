@@ -6,10 +6,11 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Request, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case
+from sqlalchemy import func, case, and_
 
 from app.database import get_db
 from app.models import WorkItem, User, Service, Capacity
+from app.services.query_utils import average_cycle_days, month_key_bounds, months_ago_start
 from app.templates import TemplateResponse
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -17,8 +18,7 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 def _date_filter(query, months: Optional[int]):
     if months:
-        since = datetime.now(timezone.utc).replace(day=1)
-        query = query.filter(WorkItem.created_at >= since)
+        query = query.filter(WorkItem.created_at >= months_ago_start(months))
     return query
 
 
@@ -39,8 +39,7 @@ def top_requesters(
     )
 
     if months:
-        since = datetime.now(timezone.utc).replace(day=1)
-        base = base.filter(WorkItem.created_at >= since)
+        base = base.filter(WorkItem.created_at >= months_ago_start(months))
 
     rows = base.group_by(WorkItem.requester_name).order_by(func.count(WorkItem.id).desc()).all()
 
@@ -79,11 +78,11 @@ def workload_by_member(
         func.sum(case((WorkItem.status == "Done", 1), else_=0)).label("done_count"),
         func.sum(case((WorkItem.status == "Blocked", 1), else_=0)).label("blocked_count"),
         func.coalesce(func.sum(WorkItem.estimate_hours), 0).label("total_estimated"),
-    ).outerjoin(WorkItem, User.id == WorkItem.assignee_id).filter(User.is_active == True)
-
+    )
+    join_condition = User.id == WorkItem.assignee_id
     if months:
-        since = datetime.now(timezone.utc).replace(day=1)
-        base = base.filter(WorkItem.created_at >= since)
+        join_condition = and_(join_condition, WorkItem.created_at >= months_ago_start(months))
+    base = base.outerjoin(WorkItem, join_condition).filter(User.is_active == True)
 
     rows = base.group_by(User.id, User.display_name).order_by(func.count(WorkItem.id).desc()).all()
 
@@ -119,11 +118,11 @@ def work_by_service(
         func.sum(case((WorkItem.status == "Done", 1), else_=0)).label("done_count"),
         func.sum(case((WorkItem.status == "Blocked", 1), else_=0)).label("blocked_count"),
         func.coalesce(func.sum(WorkItem.estimate_hours), 0).label("total_estimated"),
-    ).outerjoin(WorkItem, Service.id == WorkItem.service_id).filter(Service.status == "active")
-
+    )
+    join_condition = Service.id == WorkItem.service_id
     if months:
-        since = datetime.now(timezone.utc).replace(day=1)
-        base = base.filter(WorkItem.created_at >= since)
+        join_condition = and_(join_condition, WorkItem.created_at >= months_ago_start(months))
+    base = base.outerjoin(WorkItem, join_condition).filter(Service.status == "active")
 
     rows = base.group_by(Service.name).order_by(func.count(WorkItem.id).desc()).all()
 
@@ -194,11 +193,14 @@ def demand_vs_capacity(
         func.coalesce(func.sum(WorkItem.estimate_hours), 0).label("estimated"),
         func.coalesce(func.sum(WorkItem.actual_hours), 0).label("actual"),
         func.count(WorkItem.id).label("count"),
-    ).outerjoin(WorkItem, User.id == WorkItem.assignee_id).filter(
-        User.is_active == True,
-        WorkItem.created_at >= start_day,
-        WorkItem.created_at <= end_day,
-    ).group_by(User.display_name, User.id).order_by(User.display_name).all()
+    ).outerjoin(
+        WorkItem,
+        and_(
+            User.id == WorkItem.assignee_id,
+            WorkItem.created_at >= start_day,
+            WorkItem.created_at <= end_day,
+        ),
+    ).filter(User.is_active == True).group_by(User.display_name, User.id).order_by(User.display_name).all()
 
     for row in member_rows:
         cap = db.query(Capacity).filter(
@@ -298,8 +300,7 @@ def export_top_requesters(months: Optional[int] = Query(None), db: Session = Dep
         func.coalesce(func.sum(WorkItem.actual_hours), 0).label("actual"),
     )
     if months:
-        since = datetime.now(timezone.utc).replace(day=1)
-        base = base.filter(WorkItem.created_at >= since)
+        base = base.filter(WorkItem.created_at >= months_ago_start(months))
     rows = base.group_by(WorkItem.requester_name).order_by(func.count(WorkItem.id).desc()).all()
 
     return _csv_response(
@@ -318,10 +319,11 @@ def export_workload(months: Optional[int] = Query(None), db: Session = Depends(g
         func.sum(case((WorkItem.status == "Done", 1), else_=0)).label("done"),
         func.sum(case((WorkItem.status == "Blocked", 1), else_=0)).label("blocked"),
         func.coalesce(func.sum(WorkItem.estimate_hours), 0).label("estimated"),
-    ).outerjoin(WorkItem, User.id == WorkItem.assignee_id).filter(User.is_active == True)
+    )
+    join_condition = User.id == WorkItem.assignee_id
     if months:
-        since = datetime.now(timezone.utc).replace(day=1)
-        base = base.filter(WorkItem.created_at >= since)
+        join_condition = and_(join_condition, WorkItem.created_at >= months_ago_start(months))
+    base = base.outerjoin(WorkItem, join_condition).filter(User.is_active == True)
     rows = base.group_by(User.display_name).order_by(func.count(WorkItem.id).desc()).all()
 
     return _csv_response(
@@ -340,10 +342,11 @@ def export_services(months: Optional[int] = Query(None), db: Session = Depends(g
         func.sum(case((WorkItem.status == "Done", 1), else_=0)).label("done"),
         func.sum(case((WorkItem.status == "Blocked", 1), else_=0)).label("blocked"),
         func.coalesce(func.sum(WorkItem.estimate_hours), 0).label("estimated"),
-    ).outerjoin(WorkItem, Service.id == WorkItem.service_id).filter(Service.status == "active")
+    )
+    join_condition = Service.id == WorkItem.service_id
     if months:
-        since = datetime.now(timezone.utc).replace(day=1)
-        base = base.filter(WorkItem.created_at >= since)
+        join_condition = and_(join_condition, WorkItem.created_at >= months_ago_start(months))
+    base = base.outerjoin(WorkItem, join_condition).filter(Service.status == "active")
     rows = base.group_by(Service.name).order_by(func.count(WorkItem.id).desc()).all()
 
     return _csv_response(
@@ -454,15 +457,11 @@ def kpi_metrics(request: Request, db: Session = Depends(get_db)):
     throughput.reverse()
 
     # Cycle time (avg days from created to completed for Done items)
-    done_items = db.query(
-        func.avg(
-            func.julianday(WorkItem.completed_at) - func.julianday(WorkItem.created_at)
-        )
-    ).filter(
+    done_items = db.query(WorkItem.created_at, WorkItem.completed_at).filter(
         WorkItem.status == "Done",
-        WorkItem.completed_at is not None,
-    ).scalar()
-    cycle_time = round(float(done_items or 0), 1)
+        WorkItem.completed_at.isnot(None),
+    ).all()
+    cycle_time = round(average_cycle_days(done_items), 1)
 
     # WIP by member
     wip_members = db.query(
@@ -474,10 +473,11 @@ def kpi_metrics(request: Request, db: Session = Depends(get_db)):
     ).group_by(User.display_name).order_by(func.count(WorkItem.id).desc()).all()
 
     # SLA breach (items open > 7 days)
-    stale_threshold = now.replace(day=1) - __import__("datetime").timedelta(days=1)
+    from datetime import timedelta
+    stale_threshold = now - timedelta(days=7)
     sla_breach = db.query(func.count(WorkItem.id)).filter(
         WorkItem.status.in_(["Open", "Blocked"]),
-        WorkItem.created_at < stale_threshold.replace(day=1),
+        WorkItem.created_at < stale_threshold,
     ).scalar()
 
     total_active = db.query(func.count(WorkItem.id)).filter(
@@ -506,6 +506,31 @@ def executive_summary(request: Request, db: Session = Depends(get_db)):
     current_month = now.strftime("%Y-%m")
     current_year = now.year
     current_quarter = (now.month - 1) // 3 + 1
+    month_start, month_end = month_key_bounds(current_month)
+
+    active_items = db.query(func.count(WorkItem.id)).filter(
+        WorkItem.status.in_(["Open", "Blocked"]),
+    ).scalar() or 0
+    blocked_items = db.query(func.count(WorkItem.id)).filter(
+        WorkItem.status == "Blocked",
+    ).scalar() or 0
+    done_this_month = db.query(func.count(WorkItem.id)).filter(
+        WorkItem.status == "Done",
+        WorkItem.completed_at >= month_start,
+        WorkItem.completed_at <= month_end,
+    ).scalar() or 0
+    active_members = db.query(func.count(User.id)).filter(User.is_active == True).scalar() or 0
+    demand_hours = db.query(func.coalesce(func.sum(WorkItem.estimate_hours), 0)).filter(
+        WorkItem.created_at >= month_start,
+        WorkItem.created_at <= month_end,
+    ).scalar() or 0
+    capacity_row = db.query(
+        func.coalesce(func.sum(Capacity.capacity_hours), 0).label("gross"),
+        func.coalesce(func.sum(Capacity.leave_hours), 0).label("leave"),
+        func.coalesce(func.sum(Capacity.meeting_hours), 0).label("meetings"),
+    ).filter(Capacity.month == current_month).first()
+    net_capacity = float(capacity_row.gross or 0) - float(capacity_row.leave or 0) - float(capacity_row.meetings or 0)
+    utilization_pct = round(float(demand_hours) / net_capacity * 100, 1) if net_capacity > 0 else 0
 
     # Card 1: Retention high-risk (top 5 non-Low)
     retention_cards = db.query(RetentionScore).filter(
@@ -542,7 +567,8 @@ def executive_summary(request: Request, db: Session = Depends(get_db)):
     # Card 2: Scorecard top/bottom 3
     period = Period("quarter", current_year, current_quarter)
     perf_results = compute_performance(db, period)
-    scorecard_top = perf_results[:3] if len(perf_results) >= 3 else perf_results
+    eligible_perf = [result for result in perf_results if result["values"]["evidence_count"] > 0]
+    scorecard_top = eligible_perf[:3]
     scorecard_bottom = perf_results[-3:] if len(perf_results) >= 3 else []
 
     # Card 3: SLA Breach (open > 30 days)
@@ -594,6 +620,18 @@ def executive_summary(request: Request, db: Session = Depends(get_db)):
             "service": item.service.name if item.service else "-",
         })
 
+    attention_count = int(blocked_items) + int(sla_count) + len(retention_data)
+    capacity_planned = net_capacity > 0
+    if (not capacity_planned and float(demand_hours) > 0) or utilization_pct > 100 or sla_rate >= 20:
+        operating_status = "At risk"
+        operating_tone = "bad"
+    elif utilization_pct >= 85 or attention_count > 0:
+        operating_status = "Needs attention"
+        operating_tone = "warn"
+    else:
+        operating_status = "On track"
+        operating_tone = "good"
+
     return TemplateResponse("dashboard_executive.html", {
         "request": request,
         "retention_data": retention_data,
@@ -605,4 +643,15 @@ def executive_summary(request: Request, db: Session = Depends(get_db)):
         "total_active": int(total_active),
         "stale_items": stale_items,
         "current_month": current_month,
+        "active_items": int(active_items),
+        "blocked_items": int(blocked_items),
+        "done_this_month": int(done_this_month),
+        "active_members": int(active_members),
+        "demand_hours": float(demand_hours),
+        "net_capacity": net_capacity,
+        "utilization_pct": utilization_pct,
+        "attention_count": attention_count,
+        "operating_status": operating_status,
+        "operating_tone": operating_tone,
+        "capacity_planned": capacity_planned,
     })

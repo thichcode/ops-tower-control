@@ -4,6 +4,7 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models import User, WorkItem, Capacity, RetentionScore
+from app.services.query_utils import month_bounds
 
 
 def compute_z_score(current_value, historical_values):
@@ -53,10 +54,11 @@ def get_meeting_hours(db, user_id, year, month):
 
 
 def get_monthly_demand(db, user_id, year, month):
-    month_key = _month_key(year, month)
+    start, end = month_bounds(year, month)
     result = db.query(func.coalesce(func.sum(WorkItem.estimate_hours), 0)).filter(
         WorkItem.assignee_id == user_id,
-        func.strftime("%Y-%m", WorkItem.created_at) == month_key,
+        WorkItem.created_at >= start,
+        WorkItem.created_at <= end,
     ).scalar()
     return float(result or 0)
 
@@ -73,11 +75,12 @@ def get_monthly_availability(db, user_id, year, month):
 
 
 def get_cycle_time(db, user_id, year, month):
-    month_key = _month_key(year, month)
+    start, end = month_bounds(year, month)
     items = db.query(WorkItem).filter(
         WorkItem.assignee_id == user_id,
         WorkItem.status == "Done",
-        func.strftime("%Y-%m", WorkItem.completed_at) == month_key,
+        WorkItem.completed_at >= start,
+        WorkItem.completed_at <= end,
         WorkItem.completed_at.isnot(None),
         WorkItem.created_at.isnot(None),
     ).all()
@@ -92,17 +95,19 @@ def get_cycle_time(db, user_id, year, month):
 
 
 def get_blocked_ratio(db, user_id, year, month):
-    month_key = _month_key(year, month)
+    start, end = month_bounds(year, month)
     total = db.query(func.count(WorkItem.id)).filter(
         WorkItem.assignee_id == user_id,
-        func.strftime("%Y-%m", WorkItem.created_at) == month_key,
+        WorkItem.created_at >= start,
+        WorkItem.created_at <= end,
     ).scalar() or 0
     if total == 0:
         return 0.0
     blocked = db.query(func.count(WorkItem.id)).filter(
         WorkItem.assignee_id == user_id,
         WorkItem.status == "Blocked",
-        func.strftime("%Y-%m", WorkItem.created_at) == month_key,
+        WorkItem.created_at >= start,
+        WorkItem.created_at <= end,
     ).scalar() or 0
     return blocked / total
 
