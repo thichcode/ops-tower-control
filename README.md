@@ -58,7 +58,7 @@ Which service consumes the most effort?
 ### Services
 Service catalog — manage active/inactive services, assign categories.
 
-![Services](screenshots/services_dash.png)
+![Services](screenshots/services_catalog.png)
 
 ### Users 👥
 User management — view all members, active/inactive status.
