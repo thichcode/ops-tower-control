@@ -124,6 +124,27 @@ class AIReviewTest(unittest.TestCase):
         self.assertIn("[REDACTED]", evidence["conversation_evidence"][0]["body"])
         self.assertIn("context remains", evidence["conversation_evidence"][0]["body"])
 
+    def test_build_evidence_redacts_secrets_from_work_item_text(self):
+        self.item.title = "Rotate password=topsecret"
+        self.item.description = "Use token=abc123 for debug context"
+        self.item.notes = "secret=hidden should not leave the app"
+        self.db.commit()
+
+        evidence = build_evidence(self.db, self.item)
+
+        work_item = evidence["work_item"]
+        self.assertNotIn("topsecret", work_item["title"])
+        self.assertNotIn("abc123", work_item["description"])
+        self.assertNotIn("hidden", work_item["notes"])
+        self.assertIn("[REDACTED]", work_item["title"])
+        self.assertIn("debug context", work_item["description"])
+
+    def test_build_evidence_does_not_expose_assignee_names_to_ai(self):
+        evidence = build_evidence(self.db, self.item)
+
+        self.assertEqual(evidence["work_item"]["current_assignee"], "[REDACTED]")
+        self.assertEqual(evidence["allowed_assignees"], [])
+
     def test_apply_review_records_reviewer_id(self):
         reviewer = User(display_name="Reviewer", email="reviewer@example.com")
         self.db.add(reviewer)

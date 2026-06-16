@@ -12,7 +12,7 @@ class TeamsIntakeTest(unittest.TestCase):
     def setUp(self):
         engine = create_engine("sqlite:///:memory:")
         Base.metadata.create_all(engine)
-        self.db = sessionmaker(bind=engine)()
+        self.db = sessionmaker(bind=engine, autoflush=False)()
 
     def tearDown(self):
         self.db.close()
@@ -45,6 +45,9 @@ class TeamsIntakeTest(unittest.TestCase):
         self.assertEqual(self.db.query(WorkItem).one().status, "Open")
         self.assertEqual(self.db.query(WorkItemEvidence).count(), 2)
         self.assertEqual(self.db.query(AIReview).count(), 1)
+        review = self.db.query(AIReview).one()
+        self.assertEqual(review.evidence["conversation"]["message_count"], 2)
+        self.assertEqual(len(review.evidence["conversation_evidence"]), 2)
 
     def test_duplicate_message_is_ignored(self):
         intake_teams(self.payload(), self.db)

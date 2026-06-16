@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
+from app.auth import role_required
 from app.database import get_db
 from app.models import WorkItem, User, Service
 from app.services.pagination import paginate
@@ -67,6 +68,7 @@ def create_work_item(
     assignee_id: Optional[int] = Form(None),
     estimate_hours: Optional[Decimal] = Form(None),
     db: Session = Depends(get_db),
+    _=Depends(role_required("member", "leader", "admin")),
 ):
     item = WorkItem(
         title=title,
@@ -84,21 +86,28 @@ def create_work_item(
 
 
 @router.post("/work-items/{item_id}/done")
-def done_work_item(item_id: int, db: Session = Depends(get_db)):
+def done_work_item(item_id: int, db: Session = Depends(get_db), _=Depends(role_required("member", "leader", "admin"))):
     item = db.query(WorkItem).filter(WorkItem.id == item_id).first()
     if item:
         item.status = "Done"
+        item.blocked_reason = None
         item.completed_at = datetime.now(timezone.utc)
         db.commit()
     return RedirectResponse(url="/", status_code=303)
 
 
 @router.post("/work-items/{item_id}/blocked")
-def block_work_item(item_id: int, reason: Optional[str] = Form(None), db: Session = Depends(get_db)):
+def block_work_item(
+    item_id: int,
+    reason: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    _=Depends(role_required("member", "leader", "admin")),
+):
     item = db.query(WorkItem).filter(WorkItem.id == item_id).first()
     if item:
         item.status = "Blocked"
         item.blocked_reason = reason
+        item.completed_at = None
         db.commit()
     return RedirectResponse(url="/", status_code=303)
 
@@ -128,6 +137,7 @@ def update_work_item(
     estimate_hours: Optional[Decimal] = Form(None),
     notes: Optional[str] = Form(None),
     db: Session = Depends(get_db),
+    _=Depends(role_required("member", "leader", "admin")),
 ):
     item = db.query(WorkItem).filter(WorkItem.id == item_id).first()
     if item:

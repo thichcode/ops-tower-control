@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 from datetime import datetime, timezone, timedelta
 
+from app.auth import role_required
 from app.database import get_db
 from app.models import User, WorkItem, Capacity, Service
 from app.services.query_utils import average_cycle_days, month_key_bounds
@@ -141,6 +142,7 @@ def create_user(
     email: str = Form(...),
     role: str = Form("member"),
     db: Session = Depends(get_db),
+    _=Depends(role_required("leader", "admin")),
 ):
     user = User(display_name=display_name, email=email, role=role)
     db.add(user)
@@ -149,7 +151,7 @@ def create_user(
 
 
 @router.post("/users/{user_id}/delete")
-def delete_user(user_id: int, db: Session = Depends(get_db)):
+def delete_user(user_id: int, db: Session = Depends(get_db), _=Depends(role_required("leader", "admin"))):
     user = db.query(User).filter(User.id == user_id).first()
     if user:
         user.is_active = False
@@ -158,7 +160,7 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/users/{user_id}/activate")
-def activate_user(user_id: int, db: Session = Depends(get_db)):
+def activate_user(user_id: int, db: Session = Depends(get_db), _=Depends(role_required("leader", "admin"))):
     user = db.query(User).filter(User.id == user_id).first()
     if user:
         user.is_active = True

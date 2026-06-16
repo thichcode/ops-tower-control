@@ -7,6 +7,7 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.auth import role_required
 from app.database import get_db
 from app.models import WorkItem, WorkItemEvidence, User, Service
 from app.services.ai_review import queue_review
@@ -53,8 +54,13 @@ def intake_teams(payload: TeamsIntakePayload, db: Session = Depends(get_db)):
         ).first()
 
     if thread_item:
-        db.add(_teams_evidence(payload, thread_item.id, source_message_id))
-        queue_review(db, thread_item, "New Teams conversation evidence")
+        try:
+            with db.begin_nested():
+                db.add(_teams_evidence(payload, thread_item.id, source_message_id))
+                db.flush()
+                queue_review(db, thread_item, "New Teams conversation evidence")
+        except IntegrityError:
+            return _teams_response(thread_item, evidence_attached=False, review_queued=False, duplicate=True)
         db.commit()
         db.refresh(thread_item)
         return _teams_response(thread_item, evidence_attached=True, review_queued=True)
@@ -141,35 +147,35 @@ def intake_package(package: dict, db: Session = Depends(get_db)):
 
 
 @router.post("/sdp")
-def intake_sdp(mock: bool = False, dry_run: bool = False, db: Session = Depends(get_db)):
+def intake_sdp(mock: bool = False, dry_run: bool = False, db: Session = Depends(get_db), _=Depends(role_required("leader", "admin"))):
     from app.services.sdp_sync import sync_sdp_tickets
     stats = sync_sdp_tickets(db, mock=mock, dry_run=dry_run)
     return {"status": "ok", "stats": stats}
 
 
 @router.post("/zabbix")
-def intake_zabbix(mock: bool = False, dry_run: bool = False, db: Session = Depends(get_db)):
+def intake_zabbix(mock: bool = False, dry_run: bool = False, db: Session = Depends(get_db), _=Depends(role_required("leader", "admin"))):
     from app.services.zabbix_sync import sync_zabbix_problems
     stats = sync_zabbix_problems(db, mock=mock, dry_run=dry_run)
     return {"status": "ok", "stats": stats}
 
 
 @router.post("/digest")
-def trigger_digest(dry_run: bool = False, db: Session = Depends(get_db)):
+def trigger_digest(dry_run: bool = False, db: Session = Depends(get_db), _=Depends(role_required("leader", "admin"))):
     from app.services.daily_digest import send_daily_digest
     result = send_daily_digest(db, dry_run=dry_run)
     return result
 
 
 @router.post("/alerts")
-def trigger_alerts(dry_run: bool = False, db: Session = Depends(get_db)):
+def trigger_alerts(dry_run: bool = False, db: Session = Depends(get_db), _=Depends(role_required("leader", "admin"))):
     from app.services.leader_alerts import send_leader_alerts
     result = send_leader_alerts(db, dry_run=dry_run)
     return result
 
 
 @router.post("/retention")
-def trigger_retention_check(dry_run: bool = False, db: Session = Depends(get_db)):
+def trigger_retention_check(dry_run: bool = False, db: Session = Depends(get_db), _=Depends(role_required("leader", "admin"))):
     from app.services.retention_alerts import check_retention_alerts
     result = check_retention_alerts(db, dry_run=dry_run)
     return result

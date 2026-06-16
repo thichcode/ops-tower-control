@@ -6,7 +6,9 @@ from html.parser import HTMLParser
 import re
 import json
 import os
+import secrets
 
+from app.auth import role_required
 from app.database import get_db
 from app.models import User, Service, WorkItem
 from app.services.member_intake import import_member_package
@@ -185,6 +187,7 @@ async def import_upload(
     request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    _=Depends(role_required("leader", "admin")),
 ):
     if not file.filename.endswith(".json"):
         return TemplateResponse("import.html", {
@@ -303,6 +306,7 @@ async def import_upload(
             estimate_hours=task.get("estimate_hours"),
             actual_hours=task.get("actual_hours"),
             blocked_reason=task.get("blocked_reason"),
+            requester_token=secrets.token_urlsafe(16),
             created_at=created_at,
             completed_at=completed_at,
         )

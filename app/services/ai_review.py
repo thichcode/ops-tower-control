@@ -95,12 +95,12 @@ def build_evidence(db: Session, item: WorkItem) -> dict[str, Any]:
     return {
         "work_item": {
             "id": item.id,
-            "title": item.title,
-            "description": item.description or "",
-            "notes": item.notes or "",
+            "title": _redact_text(item.title) or "",
+            "description": _redact_text(item.description) or "",
+            "notes": _redact_text(item.notes) or "",
             "current_status": item.status,
             "current_service": item.service.name if item.service else None,
-            "current_assignee": item.assignee.display_name if item.assignee else None,
+            "current_assignee": _redact_name(item.assignee.display_name if item.assignee else None),
             "source": item.source,
             "requester": _redact_name(item.requester_name),
         },
@@ -110,7 +110,7 @@ def build_evidence(db: Session, item: WorkItem) -> dict[str, Any]:
         },
         "allowed_statuses": sorted(VALID_STATUSES),
         "allowed_services": [service.name for service in db.query(Service).filter(Service.status == "active").all()],
-        "allowed_assignees": [user.display_name for user in db.query(User).filter(User.is_active == True).all()],
+        "allowed_assignees": [],
         "conversation_evidence": [
             {
                 "sender": _redact_name(evidence.sender_name),

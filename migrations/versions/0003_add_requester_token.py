@@ -6,6 +6,8 @@ Create Date: 2026-06-15
 """
 
 from typing import Sequence, Union
+import secrets
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -17,7 +19,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
     op.add_column("work_items", sa.Column("requester_token", sa.Text(), nullable=True))
+    for row in bind.execute(sa.text("SELECT id FROM work_items WHERE requester_token IS NULL")).fetchall():
+        bind.execute(
+            sa.text("UPDATE work_items SET requester_token = :token WHERE id = :id"),
+            {"token": secrets.token_urlsafe(16), "id": row[0]},
+        )
     op.create_index("idx_work_items_requester_token", "work_items", ["requester_token"], unique=True)
 
 

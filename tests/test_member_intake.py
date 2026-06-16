@@ -11,7 +11,7 @@ class MemberIntakeTest(unittest.TestCase):
     def setUp(self):
         engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
         Base.metadata.create_all(bind=engine)
-        self.Session = sessionmaker(bind=engine)
+        self.Session = sessionmaker(bind=engine, autoflush=False)
         self.db = self.Session()
         self.db.add(Service(name="Cloudflare", category="Infra", status="active"))
         self.db.commit()
@@ -108,6 +108,9 @@ class MemberIntakeTest(unittest.TestCase):
         self.assertEqual(self.db.query(WorkItem).count(), 1)
         self.assertEqual(self.db.query(WorkItemEvidence).count(), 2)
         self.assertEqual(self.db.query(AIReview).count(), 1)
+        review = self.db.query(AIReview).one()
+        self.assertEqual(review.evidence["conversation"]["message_count"], 2)
+        self.assertEqual(len(review.evidence["conversation_evidence"]), 2)
 
         duplicate_reply = import_member_package(self.db, self.package(
             source_id="msg-2",

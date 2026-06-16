@@ -6,6 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
+from app.auth import role_required
 from app.database import get_db
 from app.models import Capacity, User
 from app.templates import TemplateResponse
@@ -51,6 +52,7 @@ def save_capacity(
     month: str = Form(...),
     db: Session = Depends(get_db),
     request: Request = None,
+    _=Depends(role_required("leader", "admin")),
 ):
     form = request.form() if request else {}
     users = db.query(User).filter(User.is_active == True).all()
@@ -66,6 +68,7 @@ def set_capacity(
     meeting_hours: Decimal = Form(0),
     notes: Optional[str] = Form(None),
     db: Session = Depends(get_db),
+    _=Depends(role_required("leader", "admin")),
 ):
     existing = db.query(Capacity).filter(
         Capacity.user_id == user_id,

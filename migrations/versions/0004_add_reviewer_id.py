@@ -17,7 +17,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("ai_reviews", sa.Column("reviewer_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=True))
+    bind = op.get_bind()
+    if bind.dialect.name == "sqlite":
+        op.add_column("ai_reviews", sa.Column("reviewer_id", sa.Integer(), nullable=True))
+    else:
+        op.add_column("ai_reviews", sa.Column("reviewer_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=True))
 
 
 def downgrade() -> None:

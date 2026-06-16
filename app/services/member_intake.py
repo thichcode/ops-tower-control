@@ -79,10 +79,15 @@ def import_member_package(db: Session, package: dict[str, Any]) -> dict[str, Any
             continue
         thread_item = _find_thread_item(db, source, evidence.get("thread_id"))
         if thread_item:
-            _add_evidence(db, thread_item, evidence, source)
-            queue_review(db, thread_item, "New conversation evidence requires review")
-            evidence_attached += 1
-            review += 1
+            try:
+                with db.begin_nested():
+                    _add_evidence(db, thread_item, evidence, source)
+                    db.flush()
+                    queue_review(db, thread_item, "New conversation evidence requires review")
+                evidence_attached += 1
+                review += 1
+            except IntegrityError:
+                skipped += 1
             continue
 
         assignee, assignee_conf = _resolve_user(db, evidence, collector)
